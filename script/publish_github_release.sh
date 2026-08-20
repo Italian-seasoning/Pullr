@@ -36,7 +36,6 @@ This build is ad-hoc signed and not Apple-notarized. Control-click Pullr and cho
 NOTES
 
 "$SPARKLE_BIN/generate_appcast" \
-  --account Pullr \
   --download-url-prefix "https://github.com/$REPOSITORY/releases/download/$TAG/" \
   --link "https://github.com/$REPOSITORY" \
   --embed-release-notes \

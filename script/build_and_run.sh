@@ -75,7 +75,7 @@ cat >"$INFO_PLIST" <<PLIST
   <key>SUFeedURL</key>
   <string>https://github.com/Italian-seasoning/Pullr/releases/latest/download/appcast.xml</string>
   <key>SUPublicEDKey</key>
-  <string>KHHTsna+PIQMcMBBmUEA0XuBObLw927mfXUF3dzC1nI=</string>
+  <string>8gXd94Dt3KOimiwIe/qd1fITXQDnKh94s0juVSOjXOI=</string>
   <key>SUEnableAutomaticChecks</key>
   <true/>
   <key>SUScheduledCheckInterval</key>
