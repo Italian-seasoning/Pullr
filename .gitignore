@@ -1,0 +1,13 @@
+.DS_Store
+.build/
+.codex/
+.swiftpm/
+dist/
+DerivedData/
+native-host/__pycache__/
+*.pyc
+*.xcuserstate
+
+# Local product notes are not part of the public source distribution.
+/DESIGN.md
+/PRODUCT.md

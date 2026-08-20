@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Pullr",
+  "description": "Match YouTube music, track listening time, and send media to Pullr.",
+  "version": "1.0.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3Z/05WsuMfvhgymVKG88D59M5qHLR1Y1uMRALgKRx0oAhREX+niwUGzsWADqoPZpkRyshJCiTbFamyG9umgmFsv2Kul/+WZZpC6aeeM3zM3hrXLVP9Wea9pbNt3L4szcZjDvMmxZLaDJzHmsCByTaf7wJ6iOY3RfL0hCbmZUiLBKSb2vOrqViyi381cTmeegdO9EJ4uRgj5+K6vgS+Ri0FFQMDMipdemVOWEbXjED9bJ3BbgukKVHE2DxfUezWd9Av5v7/AFWmlMntlKra9MKat1tSmkaOPpvElEnAp38UITf6SZR+TpWRV0QeEcu13FX2xc/KA+jaPrjDQ0nXbszQIDAQAB",
+  "permissions": ["activeTab", "nativeMessaging", "storage", "tabs", "webRequest"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content-bridge.js"],
+      "all_frames": true,
+      "match_about_blank": true,
+      "match_origin_as_fallback": true,
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["page-capture.js"],
+      "all_frames": true,
+      "match_about_blank": true,
+      "match_origin_as_fallback": true,
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://www.youtube.com/*", "https://music.youtube.com/*"],
+      "js": ["music-tracker.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Send to Pullr",
+    "default_popup": "popup.html"
+  }
+}

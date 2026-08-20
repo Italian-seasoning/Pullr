@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pullr</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="mark" aria-hidden="true"></div>
+        <div>
+          <h1>Pullr</h1>
+          <p id="tab-title">Inspecting this tab</p>
+        </div>
+      </header>
+
+      <section id="music" hidden>
+        <div class="section-heading">
+          <h2>YouTube music</h2>
+        </div>
+        <p id="song-title"></p>
+        <div class="actions">
+          <button id="apple-music" type="button">Open Apple Music Version</button>
+          <button id="download-audio" class="secondary" type="button">Download &amp; Add to Music</button>
+        </div>
+      </section>
+
+      <section id="detected" hidden>
+        <div class="section-heading">
+          <h2>Detected streams</h2>
+          <span id="stream-count"></span>
+        </div>
+        <div id="stream-list"></div>
+      </section>
+
+      <button id="send-page" class="secondary" type="button">Send current page</button>
+      <p class="privacy">Listening time stays on this Mac. Pullr does not bypass DRM or access controls.</p>
+      <p id="status" role="status" aria-live="polite"></p>
+    </main>
+
+    <script src="stream-capture.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
