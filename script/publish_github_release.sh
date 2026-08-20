@@ -39,6 +39,7 @@ NOTES
   --account Pullr \
   --download-url-prefix "https://github.com/$REPOSITORY/releases/download/$TAG/" \
   --link "https://github.com/$REPOSITORY" \
+  --embed-release-notes \
   "$RELEASE_DIR"
 xmllint --noout "$RELEASE_DIR/appcast.xml"
 rg -q 'sparkle:edSignature=' "$RELEASE_DIR/appcast.xml"
