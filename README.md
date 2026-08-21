@@ -16,7 +16,7 @@ brew install yt-dlp ffmpeg
 
 ## Install
 
-Download the latest ZIP from [Releases](https://github.com/Italian-seasoning/Pullr/releases), move Pullr to Applications, then Control-click and choose **Open** the first time. Current preview builds are Sparkle-signed but not Apple-notarized.
+Download the latest DMG from [Releases](https://github.com/Italian-seasoning/Pullr/releases). It contains Pullr.app and an `Install Pullr.command` helper; double-click the helper for a one-step install. Current preview builds are Sparkle-signed but not Apple-notarized, so Control-click Pullr and choose **Open** the first time.
 
 ## Chrome extension
 

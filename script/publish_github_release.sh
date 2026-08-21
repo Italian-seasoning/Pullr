@@ -7,13 +7,25 @@ REPOSITORY="${GITHUB_REPOSITORY:-Italian-seasoning/Pullr}"
 TAG="v$VERSION"
 RELEASE_DIR="$ROOT/dist/github-release"
 ARCHIVE_NAME="Pullr-$VERSION-macOS.zip"
+DMG_NAME="Pullr-$VERSION-macOS.dmg"
 SPARKLE_BIN="$ROOT/.build/artifacts/sparkle/Sparkle/bin"
+REUSE_APP="${PULLR_REUSE_APP:-0}"
 
 command -v gh >/dev/null || { echo "GitHub CLI is required." >&2; exit 1; }
 gh release view "$TAG" --repo "$REPOSITORY" >/dev/null 2>&1 && { echo "$TAG already exists." >&2; exit 1; }
 
-PULLR_CONFIGURATION=release PULLR_VERSION="$VERSION" "$ROOT/script/build_and_run.sh" --package
-APP="$ROOT/dist/Pullr.app"
+if [[ "$REUSE_APP" == "1" ]]; then
+  APP_SOURCE="${PULLR_APP_PATH:-$ROOT/dist/Pullr.app}"
+  [[ -d "$APP_SOURCE" ]] || { echo "Existing app not found: $APP_SOURCE" >&2; exit 1; }
+  APP="$ROOT/dist/Pullr-$VERSION.app"
+  rm -rf "$APP"
+  ditto "$APP_SOURCE" "$APP"
+  plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP/Contents/Info.plist"
+  plutil -replace CFBundleVersion -string "$VERSION" "$APP/Contents/Info.plist"
+else
+  PULLR_CONFIGURATION=release PULLR_VERSION="$VERSION" "$ROOT/script/build_and_run.sh" --package
+  APP="$ROOT/dist/Pullr.app"
+fi
 
 while IFS= read -r -d '' file; do
   if file "$file" | grep -q 'Mach-O'; then
@@ -29,8 +41,19 @@ codesign --verify --deep --strict --verbose=2 "$APP"
 rm -rf "$RELEASE_DIR"
 mkdir -p "$RELEASE_DIR"
 ditto -c -k --norsrc --keepParent "$APP" "$RELEASE_DIR/$ARCHIVE_NAME"
-cat >"$RELEASE_DIR/Pullr-$VERSION-macOS.md" <<NOTES
-Pullr $VERSION is the first public preview with persistent privacy-safe diagnostics, Chrome and Apple Music integration, and Sparkle updates.
+DMG_STAGE="$RELEASE_DIR/dmg-root"
+mkdir -p "$DMG_STAGE"
+ditto "$APP" "$DMG_STAGE/Pullr.app"
+cp "$ROOT/script/install_pullr.command" "$DMG_STAGE/Install Pullr.command"
+chmod +x "$DMG_STAGE/Install Pullr.command"
+hdiutil create -quiet -volname "Pullr $VERSION" -srcfolder "$DMG_STAGE" -ov -format UDZO "$RELEASE_DIR/$DMG_NAME"
+rm -rf "$DMG_STAGE"
+
+APPCAST_STAGE="$RELEASE_DIR/appcast-source"
+mkdir -p "$APPCAST_STAGE"
+ditto "$RELEASE_DIR/$DMG_NAME" "$APPCAST_STAGE/$DMG_NAME"
+cat >"$APPCAST_STAGE/Pullr-$VERSION-macOS.md" <<NOTES
+Pullr $VERSION adds a drag-free DMG installer containing both Pullr.app and an Install Pullr command.
 
 This build is ad-hoc signed and not Apple-notarized. Control-click Pullr and choose Open on first launch.
 NOTES
@@ -39,10 +62,18 @@ NOTES
   --download-url-prefix "https://github.com/$REPOSITORY/releases/download/$TAG/" \
   --link "https://github.com/$REPOSITORY" \
   --embed-release-notes \
-  "$RELEASE_DIR"
+  "$APPCAST_STAGE"
+cp "$APPCAST_STAGE/appcast.xml" "$RELEASE_DIR/appcast.xml"
+cp "$APPCAST_STAGE/Pullr-$VERSION-macOS.md" "$RELEASE_DIR/Pullr-$VERSION-macOS.md"
+rm -rf "$APPCAST_STAGE"
 xmllint --noout "$RELEASE_DIR/appcast.xml"
 rg -q 'sparkle:edSignature=' "$RELEASE_DIR/appcast.xml"
-(cd "$RELEASE_DIR" && shasum -a 256 "$ARCHIVE_NAME" appcast.xml > SHA256SUMS.txt)
+(cd "$RELEASE_DIR" && shasum -a 256 "$ARCHIVE_NAME" "$DMG_NAME" appcast.xml > SHA256SUMS.txt)
+
+if [[ "${PULLR_SKIP_PUBLISH:-0}" == "1" ]]; then
+  echo "Package prepared at $RELEASE_DIR"
+  exit 0
+fi
 
 gh release create "$TAG" \
   --repo "$REPOSITORY" \
@@ -50,5 +81,6 @@ gh release create "$TAG" \
   --title "Pullr $VERSION preview" \
   --notes-file "$RELEASE_DIR/Pullr-$VERSION-macOS.md" \
   "$RELEASE_DIR/$ARCHIVE_NAME" \
+  "$RELEASE_DIR/$DMG_NAME" \
   "$RELEASE_DIR/appcast.xml" \
   "$RELEASE_DIR/SHA256SUMS.txt"
