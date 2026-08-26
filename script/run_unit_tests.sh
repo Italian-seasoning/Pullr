@@ -19,6 +19,7 @@ swiftc \
   "$ROOT_DIR/Sources/Pullr/Models/PlaylistOptions.swift" \
   "$ROOT_DIR/Sources/Pullr/Models/SeasonCapturePlan.swift" \
   "$ROOT_DIR/Sources/Pullr/Services/CommandBuilder.swift" \
+  "$ROOT_DIR/Sources/Pullr/Services/BinaryUpdateService.swift" \
   "$ROOT_DIR/Sources/Pullr/Services/DownloadQueueManager.swift" \
   "$ROOT_DIR/Sources/Pullr/Services/MetadataService.swift" \
   "$ROOT_DIR/Sources/Pullr/Services/MusicLibraryService.swift" \
@@ -27,6 +28,7 @@ swiftc \
   "$ROOT_DIR/Sources/Pullr/Stores/PresetStore.swift" \
   "$ROOT_DIR/Sources/Pullr/Stores/QueueStore.swift" \
   "$ROOT_DIR/Sources/Pullr/Stores/DownloadLogStore.swift" \
+  "$ROOT_DIR/Sources/Pullr/Stores/HistoryStore.swift" \
   "$ROOT_DIR/Sources/Pullr/Stores/ListeningHistoryStore.swift" \
   "$ROOT_DIR/Sources/Pullr/Stores/SeasonStore.swift" \
   "$ROOT_DIR/Sources/Pullr/Stores/StorageLocation.swift" \

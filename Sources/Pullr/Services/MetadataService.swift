@@ -63,6 +63,7 @@ final class MetadataService {
             "--no-warnings",
             "--flat-playlist"
         ]
+        arguments += CommandBuilder.javaScriptRuntimeArguments()
         if let referrerURL, URLExtractor.isSupportedURL(referrerURL) {
             arguments += ["--referer", referrerURL]
         }

@@ -9,6 +9,7 @@ from pullr_native_host import (
     build_deep_link,
     find_apple_music,
     save_listening_event,
+    save_website_event,
     write_diagnostic,
 )
 
@@ -46,6 +47,22 @@ with tempfile.TemporaryDirectory() as directory:
     }, directory=directory, now=1234)
     assert event["seconds"] == 30
     assert (Path(directory) / "listening-history.jsonl").exists()
+
+    website_event = save_website_event({
+        "url": "https://www.youtube.com/watch?v=abc",
+        "title": "Video",
+        "seconds": 30,
+    }, directory=directory, now=1234)
+    assert website_event["site"] == "youtube.com"
+    assert website_event["isYouTube"] is True
+    assert (Path(directory) / "website-activity.jsonl").exists()
+    private_event = save_website_event({
+        "url": "https://example.com/private/path",
+        "title": "Private page title",
+        "seconds": 10,
+    }, directory=directory, now=1234)
+    assert private_event["site"] == "example.com"
+    assert private_event["title"] == ""
 
     assert write_diagnostic("findAppleMusic", "no_match", directory=directory, now=1234)
     diagnostic = (Path(directory) / "native-host.jsonl").read_text()

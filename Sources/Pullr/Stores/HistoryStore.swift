@@ -35,4 +35,9 @@ final class HistoryStore {
         guard let data = try? encoder.encode(items) else { return }
         try? data.write(to: fileURL, options: [.atomic])
     }
+
+    func clear() throws {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
+        try FileManager.default.removeItem(at: fileURL)
+    }
 }

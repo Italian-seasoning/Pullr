@@ -66,6 +66,7 @@ enum CommandBuilder {
         if request.preset.id == ExportPreset.Defaults.bestYouTubeAudio || request.preset.forceSingleItem == true {
             arguments.append("--no-playlist")
         }
+        arguments += javaScriptRuntimeArguments()
 
         let outputFolder = request.outputFolder.isEmpty ? AppSettings.defaultDownloadFolder : request.outputFolder
         arguments += ["-P", outputFolder]
@@ -133,6 +134,17 @@ enum CommandBuilder {
         case .original:
             return ["-f", preset.formatSelector ?? "best"]
         }
+    }
+
+    static func javaScriptRuntimeArguments(
+        candidates: [String] = [
+            "/opt/homebrew/bin/deno",
+            "/usr/local/bin/deno",
+            "\(NSHomeDirectory())/.deno/bin/deno"
+        ]
+    ) -> [String] {
+        guard let path = candidates.first(where: FileManager.default.isExecutableFile(atPath:)) else { return [] }
+        return ["--js-runtimes", "deno:\(path)"]
     }
 
     private static func normalizedOrigin(_ value: String?) -> String? {

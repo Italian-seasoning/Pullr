@@ -87,4 +87,14 @@ struct DownloadItem: Identifiable, Codable, Hashable {
             logs.removeFirst(logs.count - limit)
         }
     }
+
+    mutating func prepareForRetry() {
+        status = .waiting
+        progress = 0
+        speed = nil
+        eta = nil
+        outputPath = nil
+        errorMessage = nil
+        completedAt = nil
+    }
 }

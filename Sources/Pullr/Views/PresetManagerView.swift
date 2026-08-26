@@ -103,13 +103,14 @@ struct PresetManagerView: View {
                 .padding(.horizontal, 10)
                 .padding(.bottom, 8)
             }
-            .frame(width: 360)
+            .frame(minWidth: 260, idealWidth: 320, maxWidth: 360)
             .frame(maxHeight: .infinity)
             .glassPanel(cornerRadius: 18, material: .thinMaterial)
 
             if let binding = selectedPresetBinding {
                 PresetEditorView(preset: binding)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .layoutPriority(1)
             } else {
                 VStack(spacing: 10) {
                     Image(systemName: "slider.horizontal.3")

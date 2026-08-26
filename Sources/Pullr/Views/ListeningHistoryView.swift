@@ -8,23 +8,23 @@ struct ListeningHistoryView: View {
 
     var body: some View {
         Group {
-            if store.listeningHistory.isEmpty {
+            if store.listeningHistory.isEmpty && store.websiteActivity.isEmpty {
                 ContentUnavailableView {
-                    Label("No listening time yet", systemImage: "waveform")
+                    Label("No activity yet", systemImage: "chart.bar.xaxis")
                 } description: {
-                    Text("Play music on YouTube with the Pullr extension enabled.")
+                    Text("Enable hours tracking in the Pullr Chrome extension to begin.")
                 }
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], spacing: 10) {
-                            ListeningMetric(title: "Total listening", value: duration(totalSeconds), icon: "headphones")
-                            ListeningMetric(title: "Today", value: duration(todaySeconds), icon: "calendar")
-                            ListeningMetric(title: "Songs", value: "\(tracks.count)", icon: "music.note.list")
+                            ListeningMetric(title: "Website time", value: duration(websiteSeconds), icon: "globe")
+                            ListeningMetric(title: "Today", value: duration(todayWebsiteSeconds), icon: "calendar")
+                            ListeningMetric(title: "YouTube", value: duration(youtubeSeconds), icon: "play.rectangle")
                         }
 
                         HStack {
-                            Text("Most played")
+                            Text("Most visited")
                                 .font(.headline)
                             Spacer()
                             Button("Clear", role: .destructive) {
@@ -33,34 +33,47 @@ struct ListeningHistoryView: View {
                         }
 
                         LazyVStack(spacing: 8) {
-                            ForEach(tracks.prefix(50)) { track in
+                            ForEach(sites.prefix(50)) { site in
                                 HStack(spacing: 12) {
-                                    Image(systemName: "music.note")
+                                    Image(systemName: site.isYouTube ? "play.rectangle.fill" : "globe")
                                         .foregroundStyle(AppTheme.accent)
                                         .frame(width: 24)
                                     VStack(alignment: .leading, spacing: 3) {
-                                        Text(track.title)
+                                        Text(site.isYouTube ? "YouTube" : site.site)
                                             .font(.callout.weight(.semibold))
                                             .lineLimit(1)
-                                        Text(track.artist.isEmpty ? "YouTube" : track.artist)
+                                        Text(site.isYouTube && !site.title.isEmpty ? site.title : site.site)
                                             .font(.caption)
                                             .foregroundStyle(AppTheme.secondaryText)
                                             .lineLimit(1)
                                     }
                                     Spacer()
-                                    Text(duration(track.seconds))
+                                    Text(duration(site.seconds))
                                         .font(.caption.monospacedDigit())
                                         .foregroundStyle(AppTheme.secondaryText)
-                                    if let url = URL(string: track.url) {
-                                        Link(destination: url) {
-                                            Image(systemName: "arrow.up.right.square")
-                                        }
-                                        .buttonStyle(.borderless)
-                                        .accessibilityLabel("Open \(track.title) on YouTube")
-                                    }
                                 }
                                 .padding(10)
                                 .background(AppTheme.panelFill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            }
+                        }
+
+                        if !tracks.isEmpty {
+                            Text("Most played on YouTube")
+                                .font(.headline)
+                            LazyVStack(spacing: 8) {
+                                ForEach(tracks.prefix(20)) { track in
+                                    HStack {
+                                        Image(systemName: "music.note")
+                                            .foregroundStyle(AppTheme.accent)
+                                        Text(track.title).lineLimit(1)
+                                        Spacer()
+                                        Text(duration(track.seconds))
+                                            .font(.caption.monospacedDigit())
+                                            .foregroundStyle(AppTheme.secondaryText)
+                                    }
+                                    .padding(10)
+                                    .background(AppTheme.panelFill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                }
                             }
                         }
                     }
@@ -70,11 +83,39 @@ struct ListeningHistoryView: View {
         }
         .onAppear { store.refreshListeningHistory() }
         .onReceive(refreshTimer) { _ in store.refreshListeningHistory() }
-        .confirmationDialog("Clear all listening history?", isPresented: $isClearConfirmationPresented) {
-            Button("Clear Listening History", role: .destructive) {
+        .confirmationDialog("Clear all activity history?", isPresented: $isClearConfirmationPresented) {
+            Button("Clear Activity History", role: .destructive) {
                 store.clearListeningHistory()
             }
         }
+    }
+
+    private var websiteSeconds: Double {
+        store.websiteActivity.reduce(0) { $0 + $1.seconds }
+    }
+
+    private var todayWebsiteSeconds: Double {
+        store.websiteActivity
+            .filter { Calendar.current.isDateInToday($0.date) }
+            .reduce(0) { $0 + $1.seconds }
+    }
+
+    private var youtubeSeconds: Double {
+        store.websiteActivity.filter(\.isYouTube).reduce(0) { $0 + $1.seconds }
+    }
+
+    private var sites: [WebsiteSiteSummary] {
+        Dictionary(grouping: store.websiteActivity, by: \.site)
+            .compactMap { site, events in
+                guard let latest = events.max(by: { $0.recordedAt < $1.recordedAt }) else { return nil }
+                return WebsiteSiteSummary(
+                    site: site,
+                    title: latest.title,
+                    seconds: events.reduce(0) { $0 + $1.seconds },
+                    isYouTube: latest.isYouTube
+                )
+            }
+            .sorted { $0.seconds > $1.seconds }
     }
 
     private var totalSeconds: Double {
@@ -116,6 +157,14 @@ private struct ListeningTrackSummary: Identifiable {
     var artist: String
     var url: String
     var seconds: Double
+}
+
+private struct WebsiteSiteSummary: Identifiable {
+    var id: String { site }
+    var site: String
+    var title: String
+    var seconds: Double
+    var isYouTube: Bool
 }
 
 private struct ListeningMetric: View {

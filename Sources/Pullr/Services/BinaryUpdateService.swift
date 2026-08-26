@@ -5,6 +5,11 @@ struct BinaryUpdateResult: Equatable {
     var output: String
 }
 
+struct BinaryUpdateCommand: Equatable {
+    var executablePath: String
+    var arguments: [String]
+}
+
 enum BinaryUpdateServiceError: LocalizedError {
     case missingBinary
     case alreadyRunning
@@ -40,10 +45,11 @@ final class BinaryUpdateService {
             return
         }
 
+        let command = Self.updateCommand(ytDLPPath: ytDLPPath)
         let process = Process()
         let pipe = Pipe()
-        process.executableURL = URL(fileURLWithPath: ytDLPPath)
-        process.arguments = ["-U"]
+        process.executableURL = URL(fileURLWithPath: command.executablePath)
+        process.arguments = command.arguments
         process.standardOutput = pipe
         process.standardError = pipe
 
@@ -70,5 +76,22 @@ final class BinaryUpdateService {
             self.process = nil
             completion(.failure(BinaryUpdateServiceError.launchFailed(error.localizedDescription)))
         }
+    }
+
+    static func updateCommand(ytDLPPath: String, brewPath: String? = nil) -> BinaryUpdateCommand {
+        let path = URL(fileURLWithPath: ytDLPPath).standardizedFileURL.path
+        let detectedBrewPath: String? = if path.hasPrefix("/opt/homebrew/") {
+            "/opt/homebrew/bin/brew"
+        } else if path.hasPrefix("/usr/local/") {
+            "/usr/local/bin/brew"
+        } else {
+            nil
+        }
+        let packageManager = detectedBrewPath == nil ? nil : (brewPath ?? detectedBrewPath)
+
+        if let packageManager, FileManager.default.isExecutableFile(atPath: packageManager) {
+            return BinaryUpdateCommand(executablePath: packageManager, arguments: ["upgrade", "yt-dlp"])
+        }
+        return BinaryUpdateCommand(executablePath: ytDLPPath, arguments: ["-U"])
     }
 }

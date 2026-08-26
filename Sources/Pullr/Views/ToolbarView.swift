@@ -36,10 +36,11 @@ struct ToolbarView: View {
 
             addMenu
 
-            Divider()
-                .frame(height: 20)
-
-            inspectorButton
+            if store.selectedSection == .downloads {
+                Divider()
+                    .frame(height: 20)
+                inspectorButton
+            }
             queueButton
         }
     }
@@ -79,7 +80,9 @@ struct ToolbarView: View {
             .frame(width: 28)
             .accessibilityLabel("More download actions")
 
-            inspectorButton
+            if store.selectedSection == .downloads {
+                inspectorButton
+            }
         }
     }
 

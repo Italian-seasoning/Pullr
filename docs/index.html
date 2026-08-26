@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080c12">
+  <meta name="description" content="Pullr is a native macOS media download queue with Chrome capture, Apple Music matching, and optional local activity history.">
+  <meta property="og:title" content="Pullr for macOS">
+  <meta property="og:description" content="A native, local-first media download queue for your Mac.">
+  <meta property="og:image" content="https://italian-seasoning.github.io/Pullr/pullr-icon.png">
+  <title>Pullr — a native download queue for macOS</title>
+  <link rel="icon" href="pullr-icon.png">
+  <style>
+    :root {
+      color-scheme: dark;
+      --canvas: #080c12;
+      --panel: #111925;
+      --panel-raised: #172334;
+      --text: #f1f6fc;
+      --muted: #9aabc0;
+      --blue: #43a4ff;
+      --blue-deep: #0c65ce;
+      --ember: #ff7043;
+      --line: rgba(158, 190, 224, 0.16);
+      --display: ui-rounded, "SF Pro Rounded", "SF Pro Display", system-ui, sans-serif;
+      --body: "SF Pro Text", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --mono: "SFMono-Regular", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 72% 10%, rgba(39, 122, 220, 0.19), transparent 31rem),
+        radial-gradient(circle at 58% 46%, rgba(255, 91, 48, 0.08), transparent 22rem),
+        var(--canvas);
+      color: var(--text);
+      font-family: var(--body);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: inherit; }
+    a:focus-visible { outline: 3px solid var(--blue); outline-offset: 4px; border-radius: 6px; }
+    .shell { width: min(1120px, calc(100% - 40px)); margin: 0 auto; }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 82px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand { display: inline-flex; align-items: center; gap: 11px; text-decoration: none; font: 700 19px/1 var(--display); }
+    .brand img { width: 35px; height: 35px; border-radius: 9px; }
+    nav { display: flex; align-items: center; gap: 24px; color: var(--muted); font-size: 14px; }
+    nav a { text-decoration: none; }
+    nav a:hover { color: var(--text); }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(340px, 0.95fr);
+      align-items: center;
+      gap: 72px;
+      min-height: 690px;
+      padding: 92px 0 88px;
+    }
+
+    .eyebrow { margin: 0 0 24px; color: var(--blue); font: 650 12px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; }
+    h1 { max-width: 720px; margin: 0; font: 760 clamp(50px, 7vw, 82px)/0.98 var(--display); letter-spacing: -0.055em; }
+    .lede { max-width: 600px; margin: 28px 0 0; color: var(--muted); font-size: clamp(18px, 2vw, 21px); line-height: 1.55; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 36px; }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 20px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      text-decoration: none;
+      font-weight: 680;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+    .button:hover { transform: translateY(-2px); border-color: rgba(140, 194, 255, 0.45); background: rgba(255, 255, 255, 0.07); }
+    .button.primary { border-color: transparent; background: linear-gradient(135deg, var(--blue), var(--blue-deep)); color: #fff; box-shadow: 0 14px 40px rgba(22, 111, 218, 0.28); }
+    .requirements { margin-top: 18px; color: #718298; font: 12px/1.5 var(--mono); }
+
+    .queue-stage { position: relative; min-height: 480px; display: grid; place-items: center; }
+    .queue-stage::before {
+      content: "";
+      position: absolute;
+      width: 330px;
+      height: 330px;
+      border: 1px solid rgba(89, 157, 234, 0.18);
+      border-radius: 50%;
+      box-shadow: 0 0 0 42px rgba(89, 157, 234, 0.035), 0 0 0 84px rgba(89, 157, 234, 0.02);
+    }
+    .app-icon { position: absolute; top: 0; width: min(300px, 72vw); filter: drop-shadow(0 28px 45px rgba(0, 0, 0, 0.45)); z-index: 2; }
+    .queue {
+      position: absolute;
+      width: min(410px, 94vw);
+      bottom: 4px;
+      padding: 13px;
+      border: 1px solid rgba(153, 191, 233, 0.2);
+      border-radius: 22px;
+      background: rgba(15, 24, 36, 0.84);
+      box-shadow: 0 30px 70px rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(22px);
+      z-index: 3;
+    }
+    .queue-title { display: flex; justify-content: space-between; padding: 5px 7px 13px; color: var(--muted); font: 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+    .job { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 12px; padding: 12px; border-top: 1px solid var(--line); }
+    .job:first-of-type { border-top: 0; }
+    .job-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: var(--panel-raised); color: var(--blue); font-weight: 800; }
+    .job strong { display: block; font-size: 13px; }
+    .job small { color: var(--muted); font: 10px/1.8 var(--mono); }
+    .status { color: #78d7a7; font: 10px/1 var(--mono); text-transform: uppercase; }
+    .status.waiting { color: #8091a6; }
+    .status.audio { color: var(--ember); }
+
+    .section { padding: 96px 0; border-top: 1px solid var(--line); }
+    .section-heading { display: grid; grid-template-columns: 180px 1fr; gap: 34px; margin-bottom: 54px; }
+    .section-label { color: var(--muted); font: 12px/1.4 var(--mono); text-transform: uppercase; letter-spacing: 0.1em; }
+    h2 { max-width: 760px; margin: 0; font: 680 clamp(32px, 4.5vw, 54px)/1.08 var(--display); letter-spacing: -0.035em; }
+    .features { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+    .feature { min-height: 220px; padding: 28px; border-left: 1px solid var(--line); background: rgba(255, 255, 255, 0.018); }
+    .feature:first-child { border-left: 0; }
+    .feature-mark { color: var(--blue); font: 12px/1 var(--mono); }
+    .feature h3 { margin: 55px 0 10px; font: 670 20px/1.2 var(--display); }
+    .feature p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.55; }
+
+    .local { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .local-copy, .local-list { padding: clamp(28px, 5vw, 54px); border: 1px solid var(--line); border-radius: 20px; background: var(--panel); }
+    .local-copy h2 { font-size: clamp(34px, 5vw, 58px); }
+    .local-copy p { margin: 22px 0 0; color: var(--muted); line-height: 1.65; }
+    .local-list { display: grid; gap: 0; }
+    .local-row { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+    .local-row:last-child { border-bottom: 0; }
+    .local-row span:first-child { font-weight: 630; }
+    .local-row span:last-child { color: #78d7a7; font: 11px/1 var(--mono); text-transform: uppercase; }
+
+    footer { display: flex; justify-content: space-between; gap: 32px; padding: 36px 0 48px; color: #718298; font-size: 13px; }
+    footer div:last-child { display: flex; gap: 20px; }
+
+    @media (max-width: 820px) {
+      nav a:not(.button) { display: none; }
+      .hero { grid-template-columns: 1fr; gap: 62px; padding-top: 72px; }
+      .queue-stage { min-height: 440px; }
+      .section-heading { grid-template-columns: 1fr; }
+      .features, .local { grid-template-columns: 1fr; }
+      .feature { border-left: 0; border-top: 1px solid var(--line); }
+      .feature:first-child { border-top: 0; }
+    }
+
+    @media (max-width: 520px) {
+      .shell { width: min(100% - 28px, 1120px); }
+      header { min-height: 70px; }
+      nav .button { min-height: 40px; padding: 0 13px; font-size: 13px; }
+      h1 { font-size: 48px; }
+      .hero { padding-top: 58px; }
+      .section { padding: 72px 0; }
+      .queue-stage { min-height: 390px; }
+      .app-icon { width: 250px; }
+      .queue { bottom: 0; }
+      footer { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .button { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <a class="brand" href="#top" aria-label="Pullr home">
+        <img src="pullr-icon.png" alt="">
+        <span>Pullr</span>
+      </a>
+      <nav aria-label="Main navigation">
+        <a href="#features">Features</a>
+        <a href="#privacy">Privacy</a>
+        <a class="button" href="https://github.com/Italian-seasoning/Pullr">View on GitHub</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Native macOS download queue</p>
+          <h1>Bring the media you’re allowed to keep home.</h1>
+          <p class="lede">Pullr turns yt-dlp into a focused Mac app: collect links, choose an export preset, and let a real download queue handle the rest.</p>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/Italian-seasoning/Pullr/releases/latest">Download the latest preview</a>
+            <a class="button" href="https://github.com/Italian-seasoning/Pullr#build-and-test">Build from source</a>
+          </div>
+          <p class="requirements">macOS 14+ · Apple silicon and Intel · yt-dlp, ffmpeg and Deno</p>
+        </div>
+
+        <div class="queue-stage" aria-label="Pullr icon above a sample download queue">
+          <img class="app-icon" src="pullr-icon.png" alt="Pullr app icon">
+          <div class="queue">
+            <div class="queue-title"><span>Download queue</span><span>3 items</span></div>
+            <div class="job">
+              <div class="job-icon">↓</div>
+              <div><strong>Event film</strong><small>Best MP4 · 74%</small></div>
+              <span class="status">active</span>
+            </div>
+            <div class="job">
+              <div class="job-icon">♫</div>
+              <div><strong>Live session</strong><small>Best audio</small></div>
+              <span class="status audio">audio</span>
+            </div>
+            <div class="job">
+              <div class="job-icon">↗</div>
+              <div><strong>Browser capture</strong><small>Chrome · HLS</small></div>
+              <span class="status waiting">waiting</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="features">
+        <div class="section-heading">
+          <div class="section-label">What Pullr handles</div>
+          <h2>A small native surface for the parts of downloading that usually become terminal work.</h2>
+        </div>
+        <div class="features">
+          <article class="feature">
+            <span class="feature-mark">QUEUE</span>
+            <h3>Downloads you can manage</h3>
+            <p>Run several jobs at once, pause or retry them, and keep progress, speed and ETA visible.</p>
+          </article>
+          <article class="feature">
+            <span class="feature-mark">CAPTURE</span>
+            <h3>Send from Chrome</h3>
+            <p>Send supported pages and captured streams to Pullr without rebuilding a command by hand.</p>
+          </article>
+          <article class="feature">
+            <span class="feature-mark">EXPORT</span>
+            <h3>Useful presets</h3>
+            <p>Choose video or audio output, match YouTube tracks in Apple Music, and keep custom presets close.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="privacy">
+        <div class="local">
+          <div class="local-copy">
+            <p class="eyebrow">Local-first by construction</p>
+            <h2>Your queue stays on your Mac.</h2>
+            <p>Pullr has no accounts, analytics or tracking server. Optional website and YouTube hours tracking is off by default and stores its history locally.</p>
+          </div>
+          <div class="local-list" aria-label="Privacy summary">
+            <div class="local-row"><span>Developer analytics</span><span>none</span></div>
+            <div class="local-row"><span>User accounts</span><span>none</span></div>
+            <div class="local-row"><span>Activity tracking</span><span>opt-in</span></div>
+            <div class="local-row"><span>History storage</span><span>on device</span></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div>Pullr is open source software for media you own or have permission to download.</div>
+      <div>
+        <a href="https://github.com/Italian-seasoning/Pullr/blob/main/PRIVACY.md">Privacy</a>
+        <a href="https://github.com/Italian-seasoning/Pullr/blob/main/TERMS.md">Terms</a>
+        <a href="https://github.com/Italian-seasoning/Pullr">Source</a>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

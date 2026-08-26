@@ -11,6 +11,7 @@ final class AppStore: ObservableObject {
     @Published var settings: AppSettings
     @Published var history: [HistoryItem] = []
     @Published var listeningHistory: [ListeningEvent] = []
+    @Published var websiteActivity: [WebsiteActivityEvent] = []
     @Published var dependencyReport: DependencyReport
     @Published var toast: ToastMessage?
     @Published var isQueueRunning = false
@@ -32,6 +33,7 @@ final class AppStore: ObservableObject {
     private let presetStore: PresetStore
     private let historyStore: HistoryStore
     private let listeningHistoryStore: ListeningHistoryStore
+    private let websiteActivityStore: WebsiteActivityStore
     private let queueStore: QueueStore
     private let seasonStore: SeasonStore
     private let downloadLogStore: DownloadLogStore
@@ -45,6 +47,7 @@ final class AppStore: ObservableObject {
         presetStore: PresetStore = PresetStore(),
         historyStore: HistoryStore = HistoryStore(),
         listeningHistoryStore: ListeningHistoryStore = ListeningHistoryStore(),
+        websiteActivityStore: WebsiteActivityStore = WebsiteActivityStore(),
         queueStore: QueueStore = QueueStore(),
         seasonStore: SeasonStore = SeasonStore(),
         downloadLogStore: DownloadLogStore = DownloadLogStore()
@@ -53,6 +56,7 @@ final class AppStore: ObservableObject {
         self.presetStore = presetStore
         self.historyStore = historyStore
         self.listeningHistoryStore = listeningHistoryStore
+        self.websiteActivityStore = websiteActivityStore
         self.queueStore = queueStore
         self.seasonStore = seasonStore
         self.downloadLogStore = downloadLogStore
@@ -61,6 +65,7 @@ final class AppStore: ObservableObject {
         self.presets = presetStore.load()
         self.history = historyStore.load()
         self.listeningHistory = listeningHistoryStore.load()
+        self.websiteActivity = websiteActivityStore.load()
         let loadedItems = queueStore.load()
         let normalizedItems = loadedItems.map { item in
             guard item.selectedPresetID == ExportPreset.Defaults.bestYouTubeAudio else { return item }
@@ -93,12 +98,15 @@ final class AppStore: ObservableObject {
 
     func refreshListeningHistory() {
         listeningHistory = listeningHistoryStore.load()
+        websiteActivity = websiteActivityStore.load()
     }
 
     func clearListeningHistory() {
         listeningHistoryStore.clear()
+        websiteActivityStore.clear()
         listeningHistory = []
-        showToast("Listening history cleared.", kind: .info)
+        websiteActivity = []
+        showToast("Activity history cleared.", kind: .info)
     }
 
     var queueSummary: String {
@@ -117,8 +125,6 @@ final class AppStore: ObservableObject {
     }
 
     func saveSettings() {
-        settings.maxConcurrentDownloads = maxConcurrentDownloads
-        settings.maxConcurrentFragments = min(max(settings.maxConcurrentFragments, 1), 16)
         settingsStore.save(settings)
         refreshDependencies()
     }
@@ -464,6 +470,17 @@ final class AppStore: ObservableObject {
             return
         }
 
+        let failedIDs = items.filter { $0.status == .failed }.map(\.id)
+        for itemID in failedIDs {
+            guard let index = items.firstIndex(where: { $0.id == itemID }) else { continue }
+            transient403RetryItemIDs.remove(itemID)
+            items[index].prepareForRetry()
+            appendLog("Retry queued.", to: itemID)
+        }
+        if !failedIDs.isEmpty {
+            persistQueue()
+        }
+
         guard items.contains(where: { $0.status == .waiting }) else {
             showToast("There are no waiting downloads.", kind: .info)
             return
@@ -561,12 +578,7 @@ final class AppStore: ObservableObject {
         else { return }
 
         transient403RetryItemIDs.remove(item.id)
-        items[index].status = .waiting
-        items[index].progress = 0
-        items[index].speed = nil
-        items[index].eta = nil
-        items[index].outputPath = nil
-        items[index].errorMessage = nil
+        items[index].prepareForRetry()
         appendLog("Retry queued.", to: item.id)
         logger.info("Download retry queued id=\(item.id.uuidString, privacy: .public)")
         persistQueue()
@@ -630,9 +642,13 @@ final class AppStore: ObservableObject {
     }
 
     func clearHistory() {
-        history.removeAll()
-        historyStore.save(history)
-        showToast("Download history cleared. Files were not deleted.", kind: .info)
+        do {
+            try historyStore.clear()
+            history.removeAll()
+            showToast("Download history cleared. Files were not deleted.", kind: .info)
+        } catch {
+            showToast("Download history could not be cleared: \(error.localizedDescription)", kind: .error)
+        }
     }
 
     func openInFinder(path: String?) {
@@ -815,7 +831,7 @@ final class AppStore: ObservableObject {
                 case .success(let entries):
                     self.replacePlaylist(item, with: entries)
                 case .failure(let error):
-                    if let index = self.items.firstIndex(where: { $0.id == item.id }) {
+                    if self.items.contains(where: { $0.id == item.id }) {
                         self.appendLog("Playlist expansion failed: \(error.localizedDescription)", to: item.id)
                         self.persistQueue()
                     }
@@ -983,7 +999,7 @@ final class AppStore: ObservableObject {
             Task { @MainActor in
                 guard let self else { return }
                 self.metadataFetchIDs.remove(itemID)
-                guard let itemIndex = self.items.firstIndex(where: { $0.id == itemID }) else { return }
+                guard self.items.contains(where: { $0.id == itemID }) else { return }
 
                 switch result {
                 case .success(let metadata):

@@ -174,6 +174,40 @@ def save_listening_event(message, directory=None, now=None):
     return event
 
 
+def save_website_event(message, directory=None, now=None):
+    url = _safe_text(message.get("url"), 2_000)
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme not in {"http", "https"} or not host:
+        return None
+
+    try:
+        seconds = float(message.get("seconds", 0))
+    except (TypeError, ValueError):
+        return None
+    if not 0 < seconds <= 90:
+        return None
+
+    is_youtube = host == "youtu.be" or host == "youtube.com" or host.endswith(".youtube.com")
+    event = {
+        "id": str(uuid.uuid4()),
+        "site": "youtube.com" if is_youtube else host.removeprefix("www."),
+        "title": _safe_text(message.get("title"), 240) if is_youtube else "",
+        "seconds": round(seconds, 3),
+        "recordedAt": float(now if now is not None else time.time()),
+        "isYouTube": is_youtube,
+    }
+    root = Path(directory) if directory else Path.home() / "Library/Application Support/Pullr"
+    root.mkdir(parents=True, exist_ok=True)
+    payload = (json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
+    descriptor = os.open(root / "website-activity.jsonl", os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600)
+    try:
+        os.write(descriptor, payload)
+    finally:
+        os.close(descriptor)
+    return event
+
+
 def _normalized_music_text(value):
     value = _safe_text(value, 240).lower()
     value = re.sub(r"[\[(](official (music )?video|official audio|lyrics?|lyric video|hd|4k)[^\])]*[\])]", " ", value)
@@ -249,6 +283,12 @@ def main():
     if action == "trackListening":
         event = save_listening_event(message)
         write_diagnostic("trackListening", "success" if event else "invalid")
+        write_message({"ok": bool(event)})
+        return
+
+    if action == "trackWebsite":
+        event = save_website_event(message)
+        write_diagnostic("trackWebsite", "success" if event else "invalid")
         write_message({"ok": bool(event)})
         return
 

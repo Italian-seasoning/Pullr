@@ -13,7 +13,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .downloads: "Downloads"
         case .playlists: "Playlists"
-        case .listening: "Listening"
+        case .listening: "Activity"
         case .history: "History"
         case .settings: "Settings"
         }
@@ -23,7 +23,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .downloads: "arrow.down.to.line.compact"
         case .playlists: "list.bullet.rectangle"
-        case .listening: "waveform"
+        case .listening: "chart.bar.xaxis"
         case .history: "clock.arrow.circlepath"
         case .settings: "gearshape"
         }

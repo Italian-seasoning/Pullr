@@ -35,7 +35,7 @@ struct RootView: View {
                 GeometryReader { geometry in
                     let inspectorWidth = MediaDeskLayout.inspectorWidth(
                         availableWidth: geometry.size.width,
-                        isVisible: isInspectorPresented
+                        isVisible: isInspectorPresented && store.selectedSection == .downloads
                     )
 
                     HStack(spacing: 0) {
@@ -90,7 +90,7 @@ struct RootView: View {
                 PlaylistsView()
             }
         case .listening:
-            SectionContainer(title: "Listening", subtitle: "YouTube music listening time stored locally") {
+            SectionContainer(title: "Activity", subtitle: "Optional website and YouTube time stored locally") {
                 ListeningHistoryView()
             }
         case .history:

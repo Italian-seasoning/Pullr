@@ -7,6 +7,14 @@ DerivedData/
 native-host/__pycache__/
 *.pyc
 *.xcuserstate
+.env
+.env.*
+*.log
+*.pem
+*.p12
+listening-history.jsonl
+website-activity.jsonl
+native-host.jsonl*
 
 # Local product notes are not part of the public source distribution.
 /DESIGN.md

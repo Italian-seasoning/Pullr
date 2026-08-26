@@ -9,7 +9,7 @@
   <body>
     <main>
       <header>
-        <div class="mark" aria-hidden="true"></div>
+        <img class="mark" src="icons/icon128.png" alt="">
         <div>
           <h1>Pullr</h1>
           <p id="tab-title">Inspecting this tab</p>
@@ -21,9 +21,16 @@
           <h2>YouTube music</h2>
         </div>
         <p id="song-title"></p>
-        <div class="actions">
-          <button id="apple-music" type="button">Open Apple Music Version</button>
-          <button id="download-audio" class="secondary" type="button">Download &amp; Add to Music</button>
+        <div class="icon-actions">
+          <button id="apple-music" class="icon-button" type="button" aria-label="Find in Music" title="Find in Music">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 18V6l9-2v12M9 10l9-2M6.5 21C4.6 21 3 20 3 18.5S4.6 16 6.5 16 10 17 10 18.5 8.4 21 6.5 21Zm9-2c-1.9 0-3.5-1-3.5-2.5s1.6-2.5 3.5-2.5 3.5 1 3.5 2.5-1.6 2.5-3.5 2.5Z"/></svg>
+          </button>
+          <button id="download-audio" class="icon-button secondary" type="button" aria-label="Download and add to Music" title="Download and add to Music">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v11m0 0 4-4m-4 4-4-4M5 19h14"/></svg>
+          </button>
+          <button id="send-youtube" class="icon-button secondary" type="button" aria-label="Send video to Pullr" title="Send video to Pullr">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 6.5h10v11H4zM14 10l6-3v10l-6-3z"/></svg>
+          </button>
         </div>
       </section>
 
@@ -35,8 +42,22 @@
         <div id="stream-list"></div>
       </section>
 
+      <section class="hours-settings" aria-labelledby="hours-title">
+        <label class="toggle-row" for="hours-toggle">
+          <span>
+            <strong id="hours-title">Track website &amp; YouTube hours</strong>
+            <small>Off by default. Records only while Chrome is focused.</small>
+          </span>
+          <input id="hours-toggle" type="checkbox">
+        </label>
+        <details>
+          <summary>Privacy terms</summary>
+          <p>When enabled, Pullr stores active-site domains, time, and YouTube titles on this Mac. The developer receives nothing. There are no accounts, analytics, ads, or tracking servers. Turning this off stops new time records; clear existing records in Pullr’s Activity section.</p>
+        </details>
+      </section>
+
       <button id="send-page" class="secondary" type="button">Send current page</button>
-      <p class="privacy">Listening time stays on this Mac. Pullr does not bypass DRM or access controls.</p>
+      <p class="privacy">Pullr does not bypass DRM or access controls.</p>
       <p id="status" role="status" aria-live="polite"></p>
     </main>
 

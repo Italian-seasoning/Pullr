@@ -18,7 +18,15 @@ Native messaging sends the tab to Pullr without Chrome's external-protocol promp
 
 ## YouTube music
 
-On YouTube and YouTube Music, the popup can open a confident catalog match in Apple Music or start a **Best YouTube Audio** download that imports into Music when it finishes. Playback time is recorded locally in `~/Library/Application Support/Pullr/listening-history.jsonl` and summarized in Pullr's Listening section.
+On YouTube and YouTube Music, the popup has compact actions to find a confident Apple Music match, download and import the best audio, or add the current video to Pullr's normal download queue. Playback time is recorded locally in `~/Library/Application Support/Pullr/listening-history.jsonl`.
+
+## Website activity
+
+Hours tracking is off by default. Enable **Track website & YouTube hours** in the extension popup to record time for the active Chrome tab only while Chrome is focused and macOS is not idle. The same toggle controls YouTube listening history. General sites are stored by domain; YouTube also keeps the current page title. The local log is `~/Library/Application Support/Pullr/website-activity.jsonl`, summarized with listening time in Pullr's Activity section.
+
+This does not track Safari, other browsers, or time spent in other apps.
+
+See the repository [Privacy](../PRIVACY.md) and [Terms of Use](../TERMS.md).
 
 After updating the unpacked extension, click **Reload** for Pullr on `chrome://extensions` so Chrome picks up the new content script.
 

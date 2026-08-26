@@ -8,6 +8,8 @@ const music = document.querySelector("#music");
 const songTitle = document.querySelector("#song-title");
 const appleMusicButton = document.querySelector("#apple-music");
 const downloadAudioButton = document.querySelector("#download-audio");
+const sendYouTubeButton = document.querySelector("#send-youtube");
+const hoursToggle = document.querySelector("#hours-toggle");
 const bestAudioPresetID = "3A4B5C6D-7E8F-4091-A120-AAAAAAAAAAAA";
 let preferredStream = null;
 let currentMusic = null;
@@ -111,6 +113,21 @@ async function sendBestAudio(tab) {
   setStatus("Sent to Pullr. Your browser may ask for permission.");
 }
 
+async function sendYouTubeVideo(tab) {
+  const url = PullrStreamCapture.singleYouTubeVideoURL(tab.url);
+  try {
+    const response = await chrome.runtime.sendNativeMessage("app.pullr.native", { action: "add", url });
+    if (response?.ok) {
+      setStatus("Video added to Pullr.");
+      return;
+    }
+  } catch {}
+
+  const params = new URLSearchParams({ url });
+  await chrome.tabs.create({ url: `pullr://add?${params}`, active: false });
+  setStatus("Sent to Pullr. Your browser may ask for permission.");
+}
+
 async function openAppleMusic(tab) {
   const details = currentMusic || { title: tab.title || "", artist: "", url: tab.url };
   setStatus("Matching this song…");
@@ -209,4 +226,16 @@ downloadAudioButton.addEventListener("click", async () => {
   if (tab?.url && isYouTubeURL(tab.url)) await sendBestAudio(tab);
 });
 
+sendYouTubeButton.addEventListener("click", async () => {
+  const tab = await activeTab();
+  if (tab?.url && isYouTubeURL(tab.url)) await sendYouTubeVideo(tab);
+});
+
+hoursToggle.addEventListener("change", async () => {
+  await chrome.storage.local.set({ hoursTrackingEnabled: hoursToggle.checked });
+  setStatus(hoursToggle.checked ? "Hours tracking enabled on this Mac." : "Hours tracking is off.");
+});
+
+chrome.storage.local.get("hoursTrackingEnabled")
+  .then((settings) => { hoursToggle.checked = settings.hoursTrackingEnabled === true; });
 refresh().catch(() => setStatus("Pullr could not inspect this tab."));

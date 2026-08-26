@@ -180,6 +180,13 @@ let tests: [(String, () throws -> Void)] = [
         try expect(arguments.contains("%(playlist_title)s/%(playlist_index)03d - %(title)s.%(ext)s"), "Playlist folder template missing")
         try expect(arguments.contains("--ignore-config"), "Pullr should ignore external yt-dlp config files")
     }),
+    ("CommandBuilder pins an installed Deno runtime", {
+        try expectEqual(
+            CommandBuilder.javaScriptRuntimeArguments(candidates: ["/bin/sh"]),
+            ["--js-runtimes", "deno:/bin/sh"],
+            "GUI apps should pass an absolute JavaScript runtime path to yt-dlp"
+        )
+    }),
     ("CommandBuilder accepts direct M3U8 streams", {
         let url = "https://media.example.com/master.m3u8?token=abc"
         let referrer = "https://video.example.com/watch/123"
@@ -311,6 +318,44 @@ let tests: [(String, () throws -> Void)] = [
         try expectEqual(store.load(), [event], "Native-host JSONL should load")
         store.clear()
         try expect(store.load().isEmpty, "Cleared listening history should be empty")
+    }),
+    ("HistoryStore clears its persisted file", {
+        let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent("pullr-history-\(UUID().uuidString).json")
+        let store = HistoryStore(fileURL: fileURL)
+        store.save([HistoryItem(title: "Video", url: "https://youtube.com/watch?v=abc", presetName: "Best MP4")])
+        try expectEqual(store.load().count, 1, "Saved history should load")
+        try store.clear()
+        try expect(store.load().isEmpty, "Cleared download history should be empty")
+        try expect(!FileManager.default.fileExists(atPath: fileURL.path), "Clearing history should remove its persisted file")
+    }),
+    ("Homebrew yt-dlp updates through Homebrew", {
+        try expectEqual(
+            BinaryUpdateService.updateCommand(ytDLPPath: "/opt/homebrew/bin/yt-dlp", brewPath: "/opt/homebrew/bin/brew"),
+            BinaryUpdateCommand(executablePath: "/opt/homebrew/bin/brew", arguments: ["upgrade", "yt-dlp"]),
+            "Homebrew installs should not use yt-dlp self-update"
+        )
+        try expectEqual(
+            BinaryUpdateService.updateCommand(ytDLPPath: "/usr/bin/yt-dlp", brewPath: "/opt/homebrew/bin/brew"),
+            BinaryUpdateCommand(executablePath: "/usr/bin/yt-dlp", arguments: ["-U"]),
+            "Non-Homebrew installs should use yt-dlp self-update"
+        )
+    }),
+    ("Failed downloads reset cleanly for retry", {
+        var item = DownloadItem(
+            url: "https://youtube.com/watch?v=abc",
+            selectedPresetID: ExportPreset.Defaults.bestMP4,
+            status: .failed,
+            progress: 0.72,
+            speed: "2 MiB/s",
+            eta: "00:10",
+            outputPath: "/tmp/partial.mp4",
+            errorMessage: "Network failed",
+            completedAt: Date()
+        )
+        item.prepareForRetry()
+        try expectEqual(item.status, .waiting, "Retry should return a failed item to waiting")
+        try expectEqual(item.progress, 0, "Retry should reset progress")
+        try expect(item.speed == nil && item.eta == nil && item.outputPath == nil && item.errorMessage == nil && item.completedAt == nil, "Retry should clear transient completion state")
     }),
     ("MusicLibraryService safely quotes import paths", {
         let script = MusicLibraryService.appleScript(for: "/tmp/Artist's \"Song\".opus")

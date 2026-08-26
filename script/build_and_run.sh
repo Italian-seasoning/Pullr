@@ -5,7 +5,7 @@ MODE="${1:-run}"
 APP_NAME="Pullr"
 BUNDLE_ID="app.pullr.Pullr"
 MIN_SYSTEM_VERSION="14.0"
-VERSION="${PULLR_VERSION:-1.0.0}"
+VERSION="${PULLR_VERSION:-1.1.0}"
 BUILD_NUMBER="${PULLR_BUILD_NUMBER:-1}"
 CONFIGURATION="${PULLR_CONFIGURATION:-debug}"
 
@@ -38,11 +38,14 @@ rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_MACOS" "$APP_FRAMEWORKS" "$APP_RESOURCES"
 cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
+if [[ "$CONFIGURATION" == "release" ]]; then
+  strip -x "$APP_BINARY"
+fi
 ditto "$BUILD_DIR/Sparkle.framework" "$APP_FRAMEWORKS/Sparkle.framework"
 install_name_tool -add_rpath @executable_path/../Frameworks "$APP_BINARY"
 
-if [[ -f "$ROOT_DIR/Sources/Pullr/Resources/Pullr.icns" ]]; then
-  cp "$ROOT_DIR/Sources/Pullr/Resources/Pullr.icns" "$APP_RESOURCES/Pullr.icns"
+if [[ -f "$ROOT_DIR/Sources/Pullr/Resources/PullrDark.icns" ]]; then
+  cp "$ROOT_DIR/Sources/Pullr/Resources/PullrDark.icns" "$APP_RESOURCES/Pullr.icns"
 fi
 
 cat >"$INFO_PLIST" <<PLIST

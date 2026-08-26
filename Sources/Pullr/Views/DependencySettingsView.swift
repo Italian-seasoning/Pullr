@@ -51,7 +51,7 @@ struct DependencySettingsView: View {
             Section("Auto Update") {
                 Toggle("Update yt-dlp on launch", isOn: $store.settings.autoUpdateYTDLPOnLaunch)
 
-                Text("This runs yt-dlp with its built-in -U updater when Pullr starts. Some package-manager installs may refuse self-updates; the output below will show that clearly.")
+                Text("Pullr uses Homebrew when it detects a Homebrew install; other installs use yt-dlp's built-in updater. The output below shows the result.")
                     .font(.caption)
                     .foregroundStyle(AppTheme.secondaryText)
 
