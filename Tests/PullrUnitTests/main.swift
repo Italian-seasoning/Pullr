@@ -31,6 +31,41 @@ let tests: [(String, () throws -> Void)] = [
         try expectEqual(old.url, nil, "Old native-host rows should still decode")
         try expectEqual(current.url, "https://anime.example/watch/7", "New rows should preserve video identity")
     }),
+    ("PlaybackInsights builds lifetime and weekly detail", {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        calendar.firstWeekday = 2
+        let formatter = ISO8601DateFormatter()
+        func event(_ iso: String, site: String, title: String, url: String?, seconds: Double) -> WebsiteActivityEvent {
+            WebsiteActivityEvent(id: UUID(), site: site, title: title, url: url, seconds: seconds, recordedAt: formatter.date(from: iso)!.timeIntervalSince1970, isYouTube: site == "youtube.com")
+        }
+        let events = [
+            event("2026-09-07T10:00:00Z", site: "youtube.com", title: "Video A", url: "https://www.youtube.com/watch?v=a", seconds: 60),
+            event("2026-09-07T10:00:30Z", site: "youtube.com", title: "Video A", url: "https://www.youtube.com/watch?v=a", seconds: 60),
+            event("2026-09-08T20:00:00Z", site: "anime.example", title: "Episode 7", url: "https://anime.example/watch/7", seconds: 60),
+            event("2026-09-01T20:00:00Z", site: "youtube.com", title: "Previous", url: "https://www.youtube.com/watch?v=p", seconds: 100),
+            event("2026-08-01T20:00:00Z", site: "archive.example", title: "Old", url: nil, seconds: 20)
+        ]
+        let insights = PlaybackInsights(events: events, selectedDate: formatter.date(from: "2026-09-10T12:00:00Z")!, calendar: calendar)
+        try expectEqual(insights.lifetimeSeconds, 300, "Lifetime should include every valid event")
+        try expectEqual(insights.week.totalSeconds, 180, "Selected week should include seven calendar days")
+        try expectEqual(insights.week.days.map(\.seconds), [120, 60, 0, 0, 0, 0, 0], "Daily chart should align to calendar week")
+        try expectEqual(insights.week.comparison, .percentage(80), "Comparison should use the full prior week")
+        try expectEqual(insights.week.sites.map(\.site), ["youtube.com", "anime.example"], "Sites should sort by watched time")
+        try expectEqual(insights.week.sites[0].videos[0].sessionCount, 1, "Adjacent heartbeat segments should form one session")
+        try expectEqual(insights.week.sites[1].videos[0].title, "Episode 7", "Anime video titles should remain visible")
+        let noPrevious = PlaybackInsights(events: [events[0]], selectedDate: formatter.date(from: "2026-09-10T12:00:00Z")!, calendar: calendar)
+        try expectEqual(noPrevious.week.comparison, .new, "A zero prior week should display New")
+    }),
+    ("PlaybackInsights follows daylight-saving calendar weeks", {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Vancouver")!
+        calendar.firstWeekday = 1
+        let selected = ISO8601DateFormatter().date(from: "2026-03-10T12:00:00Z")!
+        let insights = PlaybackInsights(events: [], selectedDate: selected, calendar: calendar)
+        try expectEqual(insights.week.days.count, 7, "DST weeks should still have seven daily buckets")
+        try expectEqual(insights.week.interval.duration, 167 * 3_600, "Spring-forward week should use calendar boundaries")
+    }),
     ("URLExtractor extracts supported links", {
         let result = URLExtractor.extract(from: "Watch https://www.youtube.com/watch?v=abc123 and youtu.be/xyz789")
         try expectEqual(result.urls.map(\.normalizedURL), [

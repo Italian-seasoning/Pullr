@@ -17,3 +17,12 @@
 - Uncovered scope: existing real-world legacy rows with malformed optional data.
 - Residual risk: bounded by lossy decoding already used by the store.
 - Confidence: A.
+
+## Task 3 — Weekly aggregation
+
+- Evidence action: full manual Swift suite and `git diff --check`.
+- Result: exit 0; all 38 Swift tests passed.
+- Covered scope: lifetime, weekly totals, seven daily buckets, full-prior-week comparison, zero baseline, grouping, sessions, and DST boundaries.
+- Uncovered scope: visual rendering of derived values.
+- Residual risk: UI wiring remains Task 4.
+- Confidence: A.

@@ -16,6 +16,7 @@ swiftc \
   "$ROOT_DIR/Sources/Pullr/Models/HistoryItem.swift" \
   "$ROOT_DIR/Sources/Pullr/Models/ListeningEvent.swift" \
   "$ROOT_DIR/Sources/Pullr/Models/WebsiteActivityEvent.swift" \
+  "$ROOT_DIR/Sources/Pullr/Models/PlaybackInsights.swift" \
   "$ROOT_DIR/Sources/Pullr/Models/MediaDeskLayout.swift" \
   "$ROOT_DIR/Sources/Pullr/Models/PlaylistOptions.swift" \
   "$ROOT_DIR/Sources/Pullr/Models/SeasonCapturePlan.swift" \
