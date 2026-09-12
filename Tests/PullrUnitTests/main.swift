@@ -66,6 +66,17 @@ let tests: [(String, () throws -> Void)] = [
         try expectEqual(insights.week.days.count, 7, "DST weeks should still have seven daily buckets")
         try expectEqual(insights.week.interval.duration, 167 * 3_600, "Spring-forward week should use calendar boundaries")
     }),
+    ("PlaybackInsights preserves legacy YouTube playback without double counting", {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        calendar.firstWeekday = 2
+        let date = ISO8601DateFormatter().date(from: "2026-09-08T12:00:00Z")!
+        let oldEstimate = WebsiteActivityEvent(id: UUID(), site: "youtube.com", title: "Legacy Video", url: nil, seconds: 600, recordedAt: date.timeIntervalSince1970, isYouTube: true)
+        let legacy = ListeningEvent(id: UUID(), title: "Legacy Video", artist: "", url: "https://www.youtube.com/watch?v=legacy", videoID: "legacy", seconds: 600, listenedAt: date.timeIntervalSince1970)
+        let insights = PlaybackInsights(events: [oldEstimate], legacyListeningEvents: [legacy], selectedDate: date, calendar: calendar)
+        try expectEqual(insights.lifetimeSeconds, 600, "Accurate legacy playback should replace old focused-tab estimates")
+        try expectEqual(insights.week.sites[0].videos[0].title, "Legacy Video", "Legacy video detail should survive the compatibility merge")
+    }),
     ("URLExtractor extracts supported links", {
         let result = URLExtractor.extract(from: "Watch https://www.youtube.com/watch?v=abc123 and youtu.be/xyz789")
         try expectEqual(result.urls.map(\.normalizedURL), [

@@ -124,15 +124,19 @@ Old JSONL rows must continue decoding. The native host action remains `trackWebs
 
 **Impact/Compatibility:** Keep the Activity navigation section, theme components, refresh timer, clear-history confirmation, and listening history below the website insights only where it does not double-count playback totals.
 
+**Legacy compatibility addendum:** Runtime inspection found that existing accurate YouTube playback history lives in `listening-history.jsonl`, while `website-activity.jsonl` may be absent or contain the older focused-tab estimates. Before UI closeout, import legacy listening events into the aggregation boundary, prefer them over old URL-less YouTube website events, and stop producing new `trackListening` rows once canonical playback events exist. This preserves lifetime history without ongoing double counting.
+
 **Steps:**
 
-1. Add `@State` for the selected week and expanded-site IDs to `ListeningHistoryView.swift`.
-2. Replace fixed website metrics with lifetime total, selected-week total, comparison badge, previous/next/This Week controls, and a seven-bar SwiftUI chart built from layout primitives so no dependency is added.
-3. Replace flat rows with collapsed `DisclosureGroup` website rows whose children show grouped title, duration, and session count.
-4. Add accessibility labels/values to navigation controls, comparison, chart bars, and disclosure rows.
-5. Build with `rtk xcodebuild -scheme Pullr -destination 'platform=macOS' build` if a generated scheme is available; otherwise use `rtk swift build` through the repository's existing packaging script boundary.
-6. Launch the built app and verify empty, current-week, historical-week, and expanded-site states with seeded local test data; do not alter the user's real activity file.
-7. Commit the verified UI slice.
+1. Add a failing Swift regression proving legacy `ListeningEvent` rows populate lifetime/week/video summaries while old URL-less YouTube website estimates do not double count; confirm RED.
+2. Extend `PlaybackInsights` with an optional legacy-listening input and implement the compatibility merge; change `background.js` to acknowledge but no longer persist `trackListening`; run Swift and extension regressions GREEN.
+3. Add `@State` for the selected week and expanded-site IDs to `ListeningHistoryView.swift`.
+4. Replace fixed website metrics with lifetime total, selected-week total, comparison badge, previous/next/This Week controls, and a seven-bar SwiftUI chart built from layout primitives so no dependency is added.
+5. Replace flat rows with collapsed `DisclosureGroup` website rows whose children show grouped title, duration, and session count.
+6. Add accessibility labels/values to navigation controls, comparison, chart bars, and disclosure rows.
+7. Build with `rtk xcodebuild -scheme Pullr -destination 'platform=macOS' build` and package with `rtk proxy bash script/build_and_run.sh --verify`.
+8. Launch the exact rebuilt bundle, confirm its executable timestamp/path, and verify empty, current-week, historical-week, and expanded-site states without altering the user's real activity file.
+9. Commit the verified compatibility/UI slice.
 
 ## Task 5: Cross-Browser Runtime Verification
 
@@ -181,4 +185,3 @@ Old JSONL rows must continue decoding. The native host action remains `trackWebs
 - Evidence: shared files and sequential producer-consumer changes outweigh delegation benefit; subagents were not requested
 - Fallback: stop at the last verified commit if a browser-runtime boundary needs user action
 - User confirmation required: no
-

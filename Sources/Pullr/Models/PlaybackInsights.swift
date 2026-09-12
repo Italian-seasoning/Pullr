@@ -38,16 +38,35 @@ struct PlaybackInsights: Equatable {
     var lifetimeSeconds: Double
     var week: PlaybackWeekSummary
 
-    init(events: [WebsiteActivityEvent], selectedDate: Date, calendar: Calendar = .current) {
+    init(
+        events: [WebsiteActivityEvent],
+        legacyListeningEvents: [ListeningEvent] = [],
+        selectedDate: Date,
+        calendar: Calendar = .current
+    ) {
+        let canonicalCutover = events.filter { $0.isYouTube && $0.url != nil }.map(\.recordedAt).min()
+        let legacy = legacyListeningEvents.filter { canonicalCutover == nil || $0.listenedAt < canonicalCutover! }
+        let retained = events.filter { !$0.isYouTube || $0.url != nil || legacy.isEmpty }
+        let combined = retained + legacy.map {
+            WebsiteActivityEvent(
+                id: $0.id,
+                site: "youtube.com",
+                title: $0.title,
+                url: $0.url,
+                seconds: $0.seconds,
+                recordedAt: $0.listenedAt,
+                isYouTube: true
+            )
+        }
         let interval = calendar.dateInterval(of: .weekOfYear, for: selectedDate)
             ?? DateInterval(start: calendar.startOfDay(for: selectedDate), duration: 7 * 86_400)
-        let current = events.filter { interval.contains($0.date) }
+        let current = combined.filter { interval.contains($0.date) }
         let previousStart = calendar.date(byAdding: .weekOfYear, value: -1, to: interval.start) ?? interval.start
-        let previous = events.filter { $0.date >= previousStart && $0.date < interval.start }
+        let previous = combined.filter { $0.date >= previousStart && $0.date < interval.start }
         let currentTotal = current.reduce(0) { $0 + $1.seconds }
         let previousTotal = previous.reduce(0) { $0 + $1.seconds }
 
-        lifetimeSeconds = events.reduce(0) { $0 + $1.seconds }
+        lifetimeSeconds = combined.reduce(0) { $0 + $1.seconds }
         week = PlaybackWeekSummary(
             interval: interval,
             totalSeconds: currentTotal,

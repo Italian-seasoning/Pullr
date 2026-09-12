@@ -194,12 +194,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message?.action === "trackListening" && Number.isInteger(sender.tab?.id)) {
-    chrome.storage.local.get(trackingSettingKey)
-      .then((settings) => PullrWebsiteTracker.isTrackingEnabled(settings)
-        ? chrome.runtime.sendNativeMessage("app.pullr.native", message)
-        : { ok: false, disabled: true })
-      .then((response) => sendResponse(response || { ok: false }))
-      .catch(() => sendResponse({ ok: false }));
+    sendResponse({ ok: true, retired: true });
     return true;
   }
 

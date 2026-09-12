@@ -90,7 +90,7 @@ struct RootView: View {
                 PlaylistsView()
             }
         case .listening:
-            SectionContainer(title: "Activity", subtitle: "Optional website and YouTube time stored locally") {
+            SectionContainer(title: "Activity", subtitle: "Video playback from Chrome and Comet, stored locally") {
                 ListeningHistoryView()
             }
         case .history:
