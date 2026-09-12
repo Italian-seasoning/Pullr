@@ -1,5 +1,12 @@
 window.addEventListener("message", (event) => {
-  if (event.source !== window || event.data?.source !== "pullr-page-capture") return;
+  if (event.source !== window) return;
+  if (event.data?.source === "pullr-playback") {
+    if (typeof event.data.playing === "boolean") {
+      void chrome.runtime.sendMessage({ action: "videoPlaybackState", playing: event.data.playing });
+    }
+    return;
+  }
+  if (event.data?.source !== "pullr-page-capture") return;
 
   let url;
   try {

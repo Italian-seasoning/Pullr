@@ -2,6 +2,7 @@ importScripts("stream-capture.js", "website-tracker.js");
 
 const keyForTab = (tabId) => `streams:${tabId}`;
 const musicKeyForTab = (tabId) => `music:${tabId}`;
+const playbackKeyForTab = (tabId) => `playback:${tabId}`;
 const responseHeaderValue = (headers, name) => (headers || []).find((header) => header.name?.toLowerCase() === name)?.value || "";
 const requestContextByID = new Map();
 const activityKey = "websiteActivity";
@@ -25,7 +26,9 @@ async function refreshWebsiteActivity() {
 
   if (idleState === "active" && window?.focused) {
     const [tab] = await chrome.tabs.query({ active: true, windowId: window.id });
-    const activity = PullrWebsiteTracker.activityForTab(tab);
+    const playback = tab ? await chrome.storage.session.get(playbackKeyForTab(tab.id)) : {};
+    const isPlaying = Object.values(playback[playbackKeyForTab(tab?.id)] || {}).some(Boolean);
+    const activity = PullrWebsiteTracker.activityForTab(tab, isPlaying);
     if (activity) next = { ...activity, startedAt: now };
   }
 
@@ -141,6 +144,20 @@ chrome.webRequest.onBeforeRequest.addListener(
 );
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.action === "videoPlaybackState" && Number.isInteger(sender.tab?.id)) {
+    const key = playbackKeyForTab(sender.tab.id);
+    chrome.storage.session.get(key).then(async (stored) => {
+      const frames = { ...(stored[key] || {}) };
+      if (message.playing === true) frames[String(sender.frameId ?? 0)] = true;
+      else delete frames[String(sender.frameId ?? 0)];
+      if (Object.keys(frames).length) await chrome.storage.session.set({ [key]: frames });
+      else await chrome.storage.session.remove(key);
+      queueWebsiteActivityRefresh();
+      sendResponse({ ok: true });
+    });
+    return true;
+  }
+
   if (message?.action === "recordPageStream" && Number.isInteger(sender.tab?.id)) {
     const responseHeaders = message.contentType
       ? [{ name: "content-type", value: message.contentType }]
@@ -196,7 +213,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
-  void chrome.storage.session.remove([keyForTab(tabId), musicKeyForTab(tabId)]);
+  void chrome.storage.session.remove([keyForTab(tabId), musicKeyForTab(tabId), playbackKeyForTab(tabId)]);
   queueWebsiteActivityRefresh();
 });
 
@@ -204,7 +221,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (changeInfo.url) {
     void Promise.all([
       chrome.storage.session.remove(keyForTab(tabId)),
-      chrome.storage.session.remove(musicKeyForTab(tabId))
+      chrome.storage.session.remove(musicKeyForTab(tabId)),
+      chrome.storage.session.remove(playbackKeyForTab(tabId))
     ]).then(() => updateBadge(tabId));
   }
   if (changeInfo.url || changeInfo.status === "complete") queueWebsiteActivityRefresh();

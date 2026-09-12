@@ -1,5 +1,6 @@
 (function (root) {
-  function activityForTab(tab) {
+  function activityForTab(tab, isPlaying) {
+    if (!isPlaying) return null;
     try {
       const url = new URL(tab?.url || "");
       if (!["http:", "https:"].includes(url.protocol)) return null;
