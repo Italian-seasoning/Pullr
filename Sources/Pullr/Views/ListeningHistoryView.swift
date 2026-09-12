@@ -50,6 +50,8 @@ struct ListeningHistoryView: View {
                                 isClearConfirmationPresented = true
                             }
                         }
+                        .padding(12)
+                        .glassPanel(cornerRadius: 14, material: .ultraThinMaterial)
 
                         PlaybackWeekChart(days: insights.week.days, duration: duration)
 
@@ -98,7 +100,7 @@ struct ListeningHistoryView: View {
                                         .accessibilityLabel("\(site.site), \(duration(site.seconds)), \(site.videos.count) videos")
                                     }
                                     .padding(12)
-                                    .background(AppTheme.panelFill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                    .glassPanel(cornerRadius: 12, material: .thinMaterial)
                                 }
                             }
                         }
@@ -187,7 +189,7 @@ private struct ListeningMetric: View {
             Spacer()
         }
         .padding(12)
-        .background(AppTheme.panelFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .glassPanel(cornerRadius: 14, material: .ultraThinMaterial)
         .accessibilityElement(children: .combine)
     }
 }
@@ -216,7 +218,7 @@ private struct PlaybackWeekChart: View {
         }
         .frame(height: 120)
         .padding(12)
-        .background(AppTheme.panelFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .glassPanel(cornerRadius: 14, material: .ultraThinMaterial)
     }
 
     private var maxSeconds: Double {

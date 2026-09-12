@@ -124,7 +124,6 @@ struct RootView: View {
 }
 
 private struct MediaDeskSidebar: View {
-    @EnvironmentObject private var store: AppStore
     @Binding var selection: AppSection
 
     var body: some View {
@@ -140,23 +139,6 @@ private struct MediaDeskSidebar: View {
         .scrollContentBackground(.hidden)
         .background(.clear)
         .navigationTitle("Pullr")
-        .safeAreaInset(edge: .bottom) {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(store.dependencyReport.isReady ? AppTheme.success : AppTheme.warning)
-                    .frame(width: 7, height: 7)
-                Text(store.dependencyReport.isReady ? "Ready to pull" : "Setup required")
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.secondaryText)
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(.ultraThinMaterial, in: Capsule())
-            .padding(.horizontal, 8)
-            .padding(.bottom, 6)
-            .accessibilityElement(children: .combine)
-        }
     }
 }
 
