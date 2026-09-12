@@ -12,7 +12,7 @@ import sys
 import time
 import uuid
 from datetime import datetime, timezone
-from urllib.parse import urlencode, urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from urllib.request import urlopen
 
 
@@ -136,6 +136,28 @@ def _safe_text(value, limit):
     return value.replace("\r", " ").replace("\n", " ").strip()[:limit]
 
 
+_VOLATILE_ACTIVITY_QUERY_KEYS = {
+    "_", "auth", "bytestart", "byteend", "end", "exp", "expires", "key-pair-id",
+    "policy", "range", "rbuf", "rn", "session", "sig", "signature", "start", "token",
+}
+
+
+def _canonical_activity_url(value):
+    parsed = urlparse(value)
+    host = (parsed.hostname or "").lower().removeprefix("www.")
+    if parsed.scheme not in {"http", "https"} or not host:
+        return ""
+
+    is_youtube = host == "youtu.be" or host == "youtube.com" or host.endswith(".youtube.com")
+    query = [(key, val) for key, val in parse_qsl(parsed.query, keep_blank_values=True)
+             if key.lower() not in _VOLATILE_ACTIVITY_QUERY_KEYS]
+    if is_youtube:
+        video_id = parsed.path.strip("/").split("/")[0] if host == "youtu.be" else dict(query).get("v", "")
+        if video_id:
+            return f"https://www.youtube.com/watch?{urlencode({'v': video_id})}"
+    return urlunparse((parsed.scheme, host, parsed.path or "/", "", urlencode(query), ""))
+
+
 def save_listening_event(message, directory=None, now=None):
     url = _safe_text(message.get("url"), 2_000)
     parsed = urlparse(url)
@@ -176,7 +198,8 @@ def save_listening_event(message, directory=None, now=None):
 
 def save_website_event(message, directory=None, now=None):
     url = _safe_text(message.get("url"), 2_000)
-    parsed = urlparse(url)
+    canonical_url = _canonical_activity_url(url)
+    parsed = urlparse(canonical_url)
     host = (parsed.hostname or "").lower()
     if parsed.scheme not in {"http", "https"} or not host:
         return None
@@ -192,7 +215,8 @@ def save_website_event(message, directory=None, now=None):
     event = {
         "id": str(uuid.uuid4()),
         "site": "youtube.com" if is_youtube else host.removeprefix("www."),
-        "title": _safe_text(message.get("title"), 240) if is_youtube else "",
+        "title": _safe_text(message.get("title"), 240),
+        "url": canonical_url,
         "seconds": round(seconds, 3),
         "recordedAt": float(now if now is not None else time.time()),
         "isYouTube": is_youtube,

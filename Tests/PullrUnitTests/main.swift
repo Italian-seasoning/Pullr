@@ -24,6 +24,13 @@ func unwrap<T>(_ value: T?, _ message: String) throws -> T {
 }
 
 let tests: [(String, () throws -> Void)] = [
+    ("Website activity remains compatible while preserving video URLs", {
+        let decoder = JSONDecoder()
+        let old = try decoder.decode(WebsiteActivityEvent.self, from: Data(#"{"id":"00000000-0000-0000-0000-000000000001","site":"youtube.com","title":"Old Video","seconds":30,"recordedAt":1700000000,"isYouTube":true}"#.utf8))
+        let current = try decoder.decode(WebsiteActivityEvent.self, from: Data(#"{"id":"00000000-0000-0000-0000-000000000002","site":"anime.example","title":"Episode 7","url":"https://anime.example/watch/7","seconds":30,"recordedAt":1700000030,"isYouTube":false}"#.utf8))
+        try expectEqual(old.url, nil, "Old native-host rows should still decode")
+        try expectEqual(current.url, "https://anime.example/watch/7", "New rows should preserve video identity")
+    }),
     ("URLExtractor extracts supported links", {
         let result = URLExtractor.extract(from: "Watch https://www.youtube.com/watch?v=abc123 and youtu.be/xyz789")
         try expectEqual(result.urls.map(\.normalizedURL), [

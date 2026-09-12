@@ -15,6 +15,7 @@ swiftc \
   "$ROOT_DIR/Sources/Pullr/Models/ExportPreset.swift" \
   "$ROOT_DIR/Sources/Pullr/Models/HistoryItem.swift" \
   "$ROOT_DIR/Sources/Pullr/Models/ListeningEvent.swift" \
+  "$ROOT_DIR/Sources/Pullr/Models/WebsiteActivityEvent.swift" \
   "$ROOT_DIR/Sources/Pullr/Models/MediaDeskLayout.swift" \
   "$ROOT_DIR/Sources/Pullr/Models/PlaylistOptions.swift" \
   "$ROOT_DIR/Sources/Pullr/Models/SeasonCapturePlan.swift" \
@@ -30,6 +31,7 @@ swiftc \
   "$ROOT_DIR/Sources/Pullr/Stores/DownloadLogStore.swift" \
   "$ROOT_DIR/Sources/Pullr/Stores/HistoryStore.swift" \
   "$ROOT_DIR/Sources/Pullr/Stores/ListeningHistoryStore.swift" \
+  "$ROOT_DIR/Sources/Pullr/Stores/WebsiteActivityStore.swift" \
   "$ROOT_DIR/Sources/Pullr/Stores/SeasonStore.swift" \
   "$ROOT_DIR/Sources/Pullr/Stores/StorageLocation.swift" \
   "$ROOT_DIR/Tests/PullrUnitTests/main.swift" \

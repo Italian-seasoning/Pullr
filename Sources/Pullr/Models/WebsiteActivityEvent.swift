@@ -4,6 +4,7 @@ struct WebsiteActivityEvent: Identifiable, Codable, Hashable {
     var id: UUID
     var site: String
     var title: String
+    var url: String?
     var seconds: Double
     var recordedAt: Double
     var isYouTube: Bool

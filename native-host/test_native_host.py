@@ -55,14 +55,16 @@ with tempfile.TemporaryDirectory() as directory:
     }, directory=directory, now=1234)
     assert website_event["site"] == "youtube.com"
     assert website_event["isYouTube"] is True
+    assert website_event["url"] == "https://www.youtube.com/watch?v=abc"
     assert (Path(directory) / "website-activity.jsonl").exists()
     private_event = save_website_event({
-        "url": "https://example.com/private/path",
+        "url": "https://example.com/private/path?episode=7&token=secret#player",
         "title": "Private page title",
         "seconds": 10,
     }, directory=directory, now=1234)
     assert private_event["site"] == "example.com"
-    assert private_event["title"] == ""
+    assert private_event["title"] == "Private page title"
+    assert private_event["url"] == "https://example.com/private/path?episode=7"
 
     assert write_diagnostic("findAppleMusic", "no_match", directory=directory, now=1234)
     diagnostic = (Path(directory) / "native-host.jsonl").read_text()

@@ -1,10 +1,10 @@
 # Playback Insights Checkpoint
 
-- Current todo: Task 2 native persistence identity.
-- Active slice: preserve canonical video URLs and titles without breaking old JSONL rows.
-- Completed: approved design, executable plan, and Task 1 browser playback gating.
-- Evidence: Task 1 Node suites passed; `background.js` and `content-bridge.js` passed syntax checks; `git diff --check` passed.
+- Current todo: Task 3 pure weekly aggregation.
+- Active slice: derive lifetime, calendar-week, daily, comparison, site, video, and session summaries.
+- Completed: approved design, executable plan, browser playback gating, and compatible video identity persistence.
+- Evidence: native-host checks passed; all 36 Swift tests passed; old JSONL decoding and sanitized anime/YouTube URLs are covered.
 - Blockers: none.
-- Next: write failing native-host contract tests.
+- Next: write failing deterministic aggregation tests.
 - Resume hint: read the plan, this checkpoint, and `10-intent.md`; compare worktree to the last evidence entry.
-- Drift check: playback state reuses the existing timer and bridge, unconditional focused-tab timing is retired, no fallback or second timer appeared; decision `continue`.
+- Drift check: the existing `trackWebsite` and JSONL owners remain canonical; the change is additive and old rows decode; decision `continue`.
