@@ -45,14 +45,16 @@
       <section class="hours-settings" aria-labelledby="hours-title">
         <label class="toggle-row" for="hours-toggle">
           <span>
-            <strong id="hours-title">Track website &amp; YouTube hours</strong>
-            <small>Off by default. Records only while Chrome is focused.</small>
+            <strong id="hours-title">Track allowed websites</strong>
+            <small>Off by default. Counts active tabs while Chrome is focused.</small>
           </span>
           <input id="hours-toggle" type="checkbox">
         </label>
+        <button id="allow-site" class="secondary" type="button" disabled>Add this website</button>
+        <div id="allowed-sites" aria-label="Allowed websites"></div>
         <details>
           <summary>Privacy terms</summary>
-          <p>When enabled, Pullr stores active-site domains, time, and YouTube titles on this Mac. The developer receives nothing. There are no accounts, analytics, ads, or tracking servers. Turning this off stops new time records; clear existing records in Pullr’s Activity section.</p>
+          <p>Pullr records time only for websites you add here while Chrome is focused. It stores domains and YouTube titles on this Mac. The developer receives nothing. Turning this off stops new records; clear existing records in Pullr’s Activity section.</p>
         </details>
       </section>
 
@@ -62,6 +64,7 @@
     </main>
 
     <script src="stream-capture.js"></script>
+    <script src="website-tracker.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

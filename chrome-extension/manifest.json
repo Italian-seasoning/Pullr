@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Pullr",
   "description": "Track website time, match YouTube music, and send media to Pullr.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3Z/05WsuMfvhgymVKG88D59M5qHLR1Y1uMRALgKRx0oAhREX+niwUGzsWADqoPZpkRyshJCiTbFamyG9umgmFsv2Kul/+WZZpC6aeeM3zM3hrXLVP9Wea9pbNt3L4szcZjDvMmxZLaDJzHmsCByTaf7wJ6iOY3RfL0hCbmZUiLBKSb2vOrqViyi381cTmeegdO9EJ4uRgj5+K6vgS+Ri0FFQMDMipdemVOWEbXjED9bJ3BbgukKVHE2DxfUezWd9Av5v7/AFWmlMntlKra9MKat1tSmkaOPpvElEnAp38UITf6SZR+TpWRV0QeEcu13FX2xc/KA+jaPrjDQ0nXbszQIDAQAB",
   "permissions": ["activeTab", "alarms", "idle", "nativeMessaging", "storage", "tabs", "webRequest"],
   "host_permissions": ["<all_urls>"],

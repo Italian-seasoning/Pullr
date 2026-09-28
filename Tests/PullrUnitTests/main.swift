@@ -185,8 +185,8 @@ let tests: [(String, () throws -> Void)] = [
     ("CommandBuilder emits default preset arguments", {
         let expected: [(String, [String])] = [
             ("Best MP4", ["-f", "bv*+ba/b", "--merge-output-format", "mp4"]),
-            ("1080p MP4", ["-f", "bv*[height<=1080]+ba/b[height<=1080]", "--merge-output-format", "mp4"]),
-            ("720p MP4", ["-f", "bv*[height<=720]+ba/b[height<=720]", "--merge-output-format", "mp4"]),
+            ("1080p MP4", ["-f", "bv*[height<=1080]+ba/b[height<=?1080]", "--merge-output-format", "mp4"]),
+            ("720p MP4", ["-f", "bv*[height<=720]+ba/b[height<=?720]", "--merge-output-format", "mp4"]),
             ("Best YouTube Audio", ["-f", "bestaudio/best", "-x", "--audio-format", "alac", "--no-playlist", "--extractor-args", "youtube:player_client=web_embedded,android_vr"]),
             ("Audio MP3", ["-x", "--audio-format", "mp3", "--audio-quality", "0"]),
             ("Audio M4A", ["-x", "--audio-format", "m4a"]),
@@ -345,12 +345,18 @@ let tests: [(String, () throws -> Void)] = [
         if let index = presets.firstIndex(where: { $0.id == ExportPreset.Defaults.bestYouTubeAudio }) {
             presets[index].customArguments = ["-f", "bestaudio/best", "-x", "--no-playlist"]
         }
+        if let index = presets.firstIndex(where: { $0.id == ExportPreset.Defaults.mp41080 }) {
+            presets[index].formatSelector = "bv*[height<=1080]+ba/b[height<=1080]"
+            presets[index].customArguments = ["-f", "bv*[height<=1080]+ba/b[height<=1080]", "--merge-output-format", "mp4"]
+        }
         store.save(presets)
         let loaded = store.load()
         try expectEqual(loaded.last?.name, "Podcast", "Custom preset should persist")
         let bestAudio = try unwrap(loaded.first { $0.id == ExportPreset.Defaults.bestYouTubeAudio }, "Best audio preset should load")
         try expect(bestAudio.customArguments.contains("alac"), "Saved best audio preset should receive the Music-compatible format")
         try expect(bestAudio.customArguments.contains("youtube:player_client=web_embedded,android_vr"), "Saved best audio preset should receive current YouTube client args")
+        let capped = try unwrap(loaded.first { $0.id == ExportPreset.Defaults.mp41080 }, "1080p preset should load")
+        try expect(capped.customArguments.contains("bv*[height<=1080]+ba/b[height<=?1080]"), "Capped preset should accept unreported height")
         try expectEqual(store.resetDefaults(), ExportPreset.defaultPresets, "Reset should restore defaults")
     }),
     ("ListeningHistoryStore reads native-host events and clears them", {

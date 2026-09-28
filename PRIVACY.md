@@ -4,7 +4,7 @@ Pullr is local software. The developer does not receive website activity, listen
 
 ## Hours tracking
 
-Website and YouTube hours tracking is **off by default**. It starts only when you enable **Track website & YouTube hours** in the Chrome extension.
+Website hours tracking is **off by default**. It starts only after you add a website in the Chrome extension and enable **Track allowed websites**. Added domains include their subdomains. All other websites are ignored.
 
 While enabled, Pullr records time only for the active Chrome tab while Chrome is focused and macOS is not idle. It stores:
 
@@ -22,4 +22,4 @@ Pullr contacts third parties only for a feature you use: requested media sites f
 
 The public repository and release packages must not contain local activity files, download history, diagnostics, settings, credentials, private signing keys, or absolute home-directory paths. Generated builds and common local-data filenames are excluded from Git.
 
-Last updated: 2026-08-23.
+Last updated: 2026-09-27.

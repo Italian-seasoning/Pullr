@@ -22,7 +22,7 @@ On YouTube and YouTube Music, the popup has compact actions to find a confident 
 
 ## Website activity
 
-Hours tracking is off by default. Enable **Track website & YouTube hours** in the extension popup to record time for the active Chrome tab only while Chrome is focused and macOS is not idle. The same toggle controls YouTube listening history. General sites are stored by domain; YouTube also keeps the current page title. The local log is `~/Library/Application Support/Pullr/website-activity.jsonl`, summarized with listening time in Pullr's Activity section.
+Hours tracking is off by default. Add each website in the extension popup, then enable **Track allowed websites**. Pullr counts time on the active Chrome tab while Chrome is focused and macOS is not idle, whether or not video is playing. An allowed domain includes its subdomains; all other sites are ignored. General sites are stored by domain; YouTube also keeps the current page title. The local log is `~/Library/Application Support/Pullr/website-activity.jsonl`, summarized in Pullr's Activity section. Removing a site stops new records but does not erase its existing history.
 
 This does not track Safari, other browsers, or time spent in other apps.
 

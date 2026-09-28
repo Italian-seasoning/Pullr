@@ -69,10 +69,6 @@ struct ToolbarView: View {
                     store.presentSeasonManager()
                 }
                 .disabled(store.seasonPlan == nil)
-                Divider()
-                Button(store.isQueueRunning ? "Stop downloads" : "Start downloads") {
-                    store.startQueue()
-                }
             } label: {
                 Image(systemName: "ellipsis.circle")
             }
@@ -83,6 +79,9 @@ struct ToolbarView: View {
             if store.selectedSection == .downloads {
                 inspectorButton
             }
+            queueButton
+                .labelStyle(.iconOnly)
+                .help(store.isQueueRunning ? "Stop downloads" : "Start downloads")
         }
     }
 

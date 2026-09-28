@@ -7,12 +7,13 @@ const responseHeaderValue = (headers, name) => (headers || []).find((header) => 
 const requestContextByID = new Map();
 const activityKey = "websiteActivity";
 const trackingSettingKey = "hoursTrackingEnabled";
+const allowedSitesKey = "allowedSites";
 let activityRefresh = Promise.resolve();
 
 async function refreshWebsiteActivity() {
   const now = Date.now();
   const [settings, stored, idleState, window] = await Promise.all([
-    chrome.storage.local.get(trackingSettingKey),
+    chrome.storage.local.get([trackingSettingKey, allowedSitesKey]),
     chrome.storage.session.get(activityKey),
     chrome.idle.queryState(60),
     chrome.windows.getLastFocused({ populate: false }).catch(() => null)
@@ -26,14 +27,14 @@ async function refreshWebsiteActivity() {
 
   if (idleState === "active" && window?.focused) {
     const [tab] = await chrome.tabs.query({ active: true, windowId: window.id });
-    const playback = tab ? await chrome.storage.session.get(playbackKeyForTab(tab.id)) : {};
-    const isPlaying = Object.values(playback[playbackKeyForTab(tab?.id)] || {}).some(Boolean);
-    const activity = PullrWebsiteTracker.activityForTab(tab, isPlaying);
-    if (activity) next = { ...activity, startedAt: now };
+    const activity = PullrWebsiteTracker.activityForTab(tab);
+    if (activity && PullrWebsiteTracker.isAllowed(activity.site, settings[allowedSitesKey])) {
+      next = { ...activity, startedAt: now };
+    }
   }
 
   const segment = PullrWebsiteTracker.completedSegment(previous, now);
-  if (segment) {
+  if (segment && PullrWebsiteTracker.isAllowed(segment.site, settings[allowedSitesKey])) {
     await chrome.runtime.sendNativeMessage("app.pullr.native", {
       action: "trackWebsite",
       url: segment.url,
@@ -231,4 +232,5 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === "local" && changes[trackingSettingKey]) void configureWebsiteActivity();
+  else if (areaName === "local" && changes[allowedSitesKey]) queueWebsiteActivityRefresh();
 });

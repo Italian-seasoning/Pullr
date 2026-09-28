@@ -10,9 +10,13 @@ const appleMusicButton = document.querySelector("#apple-music");
 const downloadAudioButton = document.querySelector("#download-audio");
 const sendYouTubeButton = document.querySelector("#send-youtube");
 const hoursToggle = document.querySelector("#hours-toggle");
+const allowSiteButton = document.querySelector("#allow-site");
+const allowedSitesList = document.querySelector("#allowed-sites");
 const bestAudioPresetID = "3A4B5C6D-7E8F-4091-A120-AAAAAAAAAAAA";
 let preferredStream = null;
 let currentMusic = null;
+let currentSite = null;
+let allowedSites = [];
 
 const setStatus = (message) => { status.textContent = message; };
 
@@ -36,6 +40,31 @@ function isYouTubeURL(value) {
 async function activeTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   return tab;
+}
+
+function renderAllowedSites() {
+  allowedSitesList.replaceChildren();
+  allowSiteButton.disabled = !currentSite || allowedSites.includes(currentSite);
+  allowSiteButton.textContent = currentSite && allowedSites.includes(currentSite)
+    ? `${currentSite} is allowed` : `Add ${currentSite || "this website"}`;
+  for (const site of allowedSites) {
+    const row = document.createElement("div");
+    row.className = "allowed-site";
+    const label = document.createElement("span");
+    label.textContent = site;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "secondary remove-site";
+    remove.textContent = "Remove";
+    remove.setAttribute("aria-label", `Stop tracking ${site}`);
+    remove.addEventListener("click", async () => {
+      allowedSites = allowedSites.filter((value) => value !== site);
+      await chrome.storage.local.set({ allowedSites });
+      renderAllowedSites();
+    });
+    row.append(label, remove);
+    allowedSitesList.append(row);
+  }
 }
 
 function streamName(stream) {
@@ -180,6 +209,8 @@ function renderStreams(streams, tab, showAll = false) {
 async function refresh() {
   const tab = await activeTab();
   const supported = Boolean(tab?.url && isWebURL(tab.url));
+  currentSite = PullrWebsiteTracker.activityForTab(tab)?.site || null;
+  renderAllowedSites();
 
   tabTitle.textContent = tab?.title || "Inspecting this tab";
   sendPageButton.disabled = !supported;
@@ -236,6 +267,18 @@ hoursToggle.addEventListener("change", async () => {
   setStatus(hoursToggle.checked ? "Hours tracking enabled on this Mac." : "Hours tracking is off.");
 });
 
-chrome.storage.local.get("hoursTrackingEnabled")
-  .then((settings) => { hoursToggle.checked = settings.hoursTrackingEnabled === true; });
+allowSiteButton.addEventListener("click", async () => {
+  if (!currentSite || allowedSites.includes(currentSite)) return;
+  allowedSites = [...allowedSites, currentSite].sort();
+  await chrome.storage.local.set({ allowedSites });
+  renderAllowedSites();
+  setStatus(`Tracking ${currentSite} while Chrome is focused.`);
+});
+
+chrome.storage.local.get(["hoursTrackingEnabled", "allowedSites"])
+  .then((settings) => {
+    hoursToggle.checked = settings.hoursTrackingEnabled === true;
+    allowedSites = Array.isArray(settings.allowedSites) ? settings.allowedSites : [];
+    renderAllowedSites();
+  });
 refresh().catch(() => setStatus("Pullr could not inspect this tab."));

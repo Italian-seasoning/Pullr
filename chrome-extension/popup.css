@@ -88,6 +88,12 @@ p { color: var(--muted); }
 .toggle-row input { width: 18px; height: 18px; accent-color: var(--accent); }
 .toggle-row input:focus-visible { outline: 2px solid rgba(130, 174, 255, 0.9); outline-offset: 2px; }
 
+#allow-site { margin-top: 9px; }
+#allowed-sites { display: grid; gap: 5px; margin-top: 7px; }
+.allowed-site { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }
+.allowed-site span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.remove-site { width: auto; min-height: 30px; padding: 0 9px; font-size: 11px; }
+
 details { margin-top: 7px; color: var(--muted); font-size: 11px; }
 summary { cursor: pointer; }
 details p { margin-top: 6px; }

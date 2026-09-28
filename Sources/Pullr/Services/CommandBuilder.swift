@@ -106,7 +106,7 @@ enum CommandBuilder {
         case .video:
             let selector: String
             if let maxHeight = preset.maxHeight {
-                selector = "bv*[height<=\(maxHeight)]+ba/b[height<=\(maxHeight)]"
+                selector = "bv*[height<=\(maxHeight)]+ba/b[height<=?\(maxHeight)]"
             } else {
                 selector = preset.formatSelector ?? "bv*+ba/b"
             }

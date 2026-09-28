@@ -97,20 +97,20 @@ extension ExportPreset {
             name: "1080p MP4",
             kind: .video,
             isDefault: true,
-            formatSelector: "bv*[height<=1080]+ba/b[height<=1080]",
+            formatSelector: "bv*[height<=1080]+ba/b[height<=?1080]",
             maxHeight: 1080,
             mergeOutputFormat: "mp4",
-            customArguments: ["-f", "bv*[height<=1080]+ba/b[height<=1080]", "--merge-output-format", "mp4"]
+            customArguments: ["-f", "bv*[height<=1080]+ba/b[height<=?1080]", "--merge-output-format", "mp4"]
         ),
         ExportPreset(
             id: Defaults.mp4720,
             name: "720p MP4",
             kind: .video,
             isDefault: true,
-            formatSelector: "bv*[height<=720]+ba/b[height<=720]",
+            formatSelector: "bv*[height<=720]+ba/b[height<=?720]",
             maxHeight: 720,
             mergeOutputFormat: "mp4",
-            customArguments: ["-f", "bv*[height<=720]+ba/b[height<=720]", "--merge-output-format", "mp4"]
+            customArguments: ["-f", "bv*[height<=720]+ba/b[height<=?720]", "--merge-output-format", "mp4"]
         ),
         ExportPreset(
             id: Defaults.bestYouTubeAudio,
@@ -157,30 +157,30 @@ extension ExportPreset {
             name: "Storage Saver · 720p",
             kind: .video,
             isDefault: true,
-            formatSelector: "bv*[height<=720]+ba/b[height<=720]",
+            formatSelector: "bv*[height<=720]+ba/b[height<=?720]",
             maxHeight: 720,
             mergeOutputFormat: "mp4",
-            customArguments: ["-f", "bv*[height<=720]+ba/b[height<=720]", "-S", "res:720,+size,+br", "--merge-output-format", "mp4"]
+            customArguments: ["-f", "bv*[height<=720]+ba/b[height<=?720]", "-S", "res:720,+size,+br", "--merge-output-format", "mp4"]
         ),
         ExportPreset(
             id: Defaults.balanced,
             name: "Balanced · 720p",
             kind: .video,
             isDefault: true,
-            formatSelector: "bv*[height<=720]+ba/b[height<=720]",
+            formatSelector: "bv*[height<=720]+ba/b[height<=?720]",
             maxHeight: 720,
             mergeOutputFormat: "mp4",
-            customArguments: ["-f", "bv*[height<=720]+ba/b[height<=720]", "--merge-output-format", "mp4"]
+            customArguments: ["-f", "bv*[height<=720]+ba/b[height<=?720]", "--merge-output-format", "mp4"]
         ),
         ExportPreset(
             id: Defaults.maxResolution,
             name: "Max Resolution · 1080p",
             kind: .video,
             isDefault: true,
-            formatSelector: "bv*[height<=1080]+ba/b[height<=1080]",
+            formatSelector: "bv*[height<=1080]+ba/b[height<=?1080]",
             maxHeight: 1080,
             mergeOutputFormat: "mp4",
-            customArguments: ["-f", "bv*[height<=1080]+ba/b[height<=1080]", "--merge-output-format", "mp4"]
+            customArguments: ["-f", "bv*[height<=1080]+ba/b[height<=?1080]", "--merge-output-format", "mp4"]
         )
     ]
 }

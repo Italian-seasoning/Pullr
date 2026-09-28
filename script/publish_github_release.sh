@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${1:-1.1.0}"
+VERSION="${1:-1.1.1}"
 REPOSITORY="${GITHUB_REPOSITORY:-Italian-seasoning/Pullr}"
 TAG="v$VERSION"
 RELEASE_DIR="$ROOT/dist/github-release"
@@ -53,9 +53,9 @@ APPCAST_STAGE="$RELEASE_DIR/appcast-source"
 mkdir -p "$APPCAST_STAGE"
 ditto "$RELEASE_DIR/$DMG_NAME" "$APPCAST_STAGE/$DMG_NAME"
 cat >"$APPCAST_STAGE/Pullr-$VERSION-macOS.md" <<NOTES
-Pullr $VERSION adds the new app icon, failed-download retry improvements, Homebrew-aware yt-dlp updates, Deno support for YouTube challenge handling, and optional local website and YouTube hours tracking.
+Pullr $VERSION keeps the Start/Stop button visible with the sidebar open and lets capped video presets accept formats with unreported height.
 
-The Chrome extension now includes the refreshed icon and an opt-in hours-tracking control. Activity stays on this Mac and can be cleared from Pullr.
+The Chrome extension now counts time on focused tabs only for websites added to its allowlist. Activity stays on this Mac and can be cleared from Pullr.
 
 This build is ad-hoc signed and not Apple-notarized. Control-click Pullr and choose Open on first launch.
 NOTES

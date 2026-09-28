@@ -53,6 +53,16 @@ final class PresetStore {
                 savedPreset.forceSingleItem = defaultPreset.forceSingleItem
                 savedPreset.customArguments = defaultPreset.customArguments
                 byID[defaultPreset.id] = savedPreset
+            } else if let savedPreset = byID[defaultPreset.id],
+                      let height = defaultPreset.maxHeight {
+                let oldSelector = "bv*[height<=\(height)]+ba/b[height<=\(height)]"
+                if let newSelector = defaultPreset.formatSelector,
+                   savedPreset.formatSelector == oldSelector && savedPreset.customArguments.contains(oldSelector) {
+                    var updated = savedPreset
+                    updated.formatSelector = newSelector
+                    updated.customArguments = savedPreset.customArguments.map { $0 == oldSelector ? newSelector : $0 }
+                    byID[defaultPreset.id] = updated
+                }
             } else if byID[defaultPreset.id] == nil {
                 byID[defaultPreset.id] = defaultPreset
             }
