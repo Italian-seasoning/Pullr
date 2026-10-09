@@ -1,63 +1,60 @@
-<p align="center">
-  <img src="docs/pullr-icon.png" width="144" alt="Pullr app icon">
-</p>
+# Pullr for Windows
 
-<h1 align="center">Pullr</h1>
+Chrome-only video downloader · **0.3.0**
 
-<p align="center">
-  <a href="https://italian-seasoning.github.io/Pullr/">Website</a> ·
-  <a href="https://github.com/Italian-seasoning/Pullr/releases/latest">Latest preview</a> ·
-  <a href="PRIVACY.md">Privacy</a>
-</p>
+This branch packages Pullr's browser downloader for Windows. It captures embedded videos, saves supported direct files and HLS streams locally, and queues downloads one at a time. No account, daily quota, paid tier, artificial wait timer, or desktop helper is required.
 
-Pullr is a native macOS download queue for media you own, have permission to save, or can legally access offline. It supports individual links, playlists, direct HLS streams, audio import into Apple Music, and an optional Chrome extension.
-
-## Requirements
-
-- macOS 14 or newer
-- [`yt-dlp`](https://github.com/yt-dlp/yt-dlp)
-- [`ffmpeg`](https://ffmpeg.org/)
-- [`Deno`](https://deno.com/) for YouTube challenge handling
-
-Install the command-line dependencies with Homebrew:
-
-```sh
-brew install yt-dlp ffmpeg deno
-```
+**[Download the extension ZIP](https://github.com/Italian-seasoning/Pullr/raw/refs/heads/windows-distribution/windows/packages/PullrChrome.zip)** · [Installation instructions](windows/INSTALL.md) · [Privacy](windows/chrome-extension/PRIVACY.md)
 
 ## Install
 
-Download the latest DMG from [Releases](https://github.com/Italian-seasoning/Pullr/releases). It contains Pullr.app and an `Install Pullr.command` helper; double-click the helper for a one-step install. Current preview builds are Sparkle-signed but not Apple-notarized, so Control-click Pullr and choose **Open** the first time.
+1. Download and extract the ZIP into a permanent folder.
+2. Open `chrome://extensions` and enable **Developer mode**.
+3. Click **Load unpacked** and select the extracted folder containing `manifest.json`.
+4. Pin Pullr, reload the video page, play the video, and open the extension.
 
-## Chrome extension
+Requires desktop Chrome 125 or newer. This is an unpacked Chrome extension; it has not been published to the Chrome Web Store. See the [full Windows guide](windows/INSTALL.md) for downloads, queue behavior, updates, and removal.
 
-1. Open `chrome://extensions` and enable Developer mode.
-2. Choose **Load unpacked** and select `chrome-extension` from this repository.
-3. Run `./native-host/install.sh` from Terminal.
-4. Reload the extension after updating its files.
+## Interface
 
-The extension can send supported pages to Pullr and match YouTube tracks in Apple Music. Website and YouTube hours tracking is optional and off by default; enable it from the extension popup.
+Dark mode only, visible button labels, title-first video summaries, full-width filenames, and vertical progress. Confirmed HLS quality playlists are grouped together. **Paste link** reads the copied video URL. Completed downloads show **Saved** and **Download again**.
 
-## Build and test
+<p>
+  <img src="windows/screenshots/popup.png" width="280" alt="Compact dark video capture popup">
+  <img src="windows/screenshots/ready.png" width="320" alt="Video title, quality, duration, and full-width filename before downloading">
+</p>
+
+## Compatibility
+
+Supports direct MP4/WebM/MOV/M4V, completed combined-audio/video HLS, master-playlist quality selection, byte ranges, supported MPEG-TS to MP4 packaging, fragmented MP4, and ordinary AES-128 HLS with accessible keys.
+
+DASH, separate audio-track merging, DRM, live recording, timeline/codec switches, site-specific extractors, and restart/resume are not implemented. Sites may reject inaccessible or expired URLs.
+
+## Source and packaging
+
+The standalone extension source is in [windows/chrome-extension](windows/chrome-extension). The repository's older macOS bridge in `chrome-extension` is a separate component. The native macOS distribution remains on [main](https://github.com/Italian-seasoning/Pullr/tree/main).
+
+The runtime ZIP contains only extension files. [Source ZIP](windows/packages/PullrChrome-source.zip) includes documentation and checks. Rebuild both archives with Python 3:
 
 ```sh
-./script/run_unit_tests.sh
-python3 native-host/test_native_host.py
-node chrome-extension/test_music_tracker.js
-node chrome-extension/test_page_capture.js
-node chrome-extension/test_stream_capture.js
-node chrome-extension/test_website_tracker.js
-./script/build_and_run.sh --verify
+python windows/package.py
 ```
 
-Sparkle is pinned through Swift Package Manager. Release archives and appcasts are signed with a private key stored in the maintainer's macOS Keychain; the private key is never stored in this repository.
+Run the portable Node checks:
 
-## Privacy and diagnostics
+```sh
+cd windows/chrome-extension
+node tests/test_dlp.cjs
+node tests/test_groups.cjs
+node test_stream_capture.js
+node test_page_capture.js
+node test_background.js
+```
 
-Pullr has no analytics or accounts. The developer does not receive activity data. Settings, queue state, optional local activity history, and diagnostics remain in `~/Library/Application Support/Pullr`. Diagnostic logs remove URL query strings and replace the home-directory prefix before writing. The Chrome native host records only timestamps, action names, outcomes, and safe error types.
+The capture hooks reuse Pullr's existing code; the browser downloader handles fetching, playlist parsing, encryption keys, disk writes, cancellation, and queue coordination. MP4 packaging uses bundled [mux.js](https://github.com/videojs/mux.js) with its included Apache 2.0 license. All executable code is bundled locally.
 
-Network access is limited to the links you request, Apple catalog matching, dependency updates you initiate, and GitHub Releases for Sparkle update checks.
+## Validation
 
-Pullr does not decrypt DRM, bypass access controls, or automatically copy browser cookies. You are responsible for complying with site terms and applicable law.
+Node checks and the Chrome workflow passed, including grouped iframe capture, queue handoff, opt-in site login, cancellation preserving existing files, and temporary header-rule cleanup. Screenshots use generated local fixtures. The published files and ZIP contents were checked for personal identifiers, credentials, and absolute personal file paths.
 
-See [Privacy](PRIVACY.md) and [Terms of Use](TERMS.md).
+Browser automation ran on macOS and substituted fixture APIs for native Save As and OS clipboard reads. Windows Chrome and those native permission/dialog flows remain untested. See the [validation record](windows/chrome-extension/VALIDATION.md).

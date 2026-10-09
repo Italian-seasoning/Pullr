@@ -1,0 +1,65 @@
+:root { color-scheme: dark; --bg: #111214; --panel: #090a0b; --surface: #1b1d20; --text: #f4f5f5; --muted: #a0a6aa; --border: #2b2e32; --accent: #9cf7b6; }
+* { box-sizing: border-box; }
+body { margin: 0; color: var(--text); background: var(--bg); font: 13px/1.4 system-ui, sans-serif; }
+[hidden] { display: none !important; }
+body.popup { width: 320px; }
+main { padding: 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 18px; }
+.popup main { margin: 8px; max-height: 584px; overflow-y: auto; }
+body.manager main { width: calc(100% - 32px); max-width: 400px; margin: 32px auto; padding: 20px; border-radius: 22px; }
+h1, h2, p { margin: 0; }
+h1 { display: flex; align-items: center; gap: 8px; font: 600 19px/1.2 "Avenir Next", system-ui, sans-serif; letter-spacing: -.5px; }
+h1 svg { width: 21px; height: 21px; flex: none; }
+h2 { font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 18px 0 4px; }
+header p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); margin-top: 4px; font-size: 12px; }
+.popup header { margin-bottom: 12px; }
+.popup header p { margin-top: 6px; font-size: 11px; }
+.hint { margin: 12px 0 0; color: var(--muted); font-size: 11px; }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; }
+button { min-height: 32px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: var(--surface); font: inherit; font-weight: 600; cursor: pointer; }
+button.primary { color: #102218; background: var(--accent); border-color: var(--accent); }
+button:hover:not(:disabled) { background: #292c30; border-color: #50565d; }
+button.primary:hover:not(:disabled) { background: #b9facb; border-color: #b9facb; }
+button:disabled { color: var(--muted); background: #151719; border-color: #26292d; cursor: default; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.popup .actions button { flex: 1; font-size: 12px; }
+#stream-list { max-height: 280px; overflow-y: auto; }
+.stream { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 8px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.stream:last-child { border-bottom: 0; }
+.stream-info { display: contents; }
+.stream strong { grid-column: 1 / -1; display: block; font-size: 11px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stream p { margin: 2px 0 0; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.stream button { font-size: 12px; }
+.stream .actions { flex: none; flex-wrap: nowrap; }
+.popup .stream .actions button { flex: none; }
+#count { color: var(--muted); font-weight: 400; }
+#queue-list { max-height: 140px; overflow-y: auto; }
+#status { margin-top: 10px; overflow-wrap: anywhere; font-size: 12px; }
+#status:empty { display: none; }
+.transfer { display: grid; grid-template-columns: 8px minmax(0, 1fr); align-items: center; gap: 18px; padding: 16px; margin: 20px 0; border: 1px solid var(--border); border-radius: 16px; background: #111315; }
+.progress-rail { position: relative; width: 8px; height: 88px; }
+progress { appearance: none; position: absolute; left: -40px; top: 40px; width: 88px; height: 8px; border: 0; border-radius: 8px; background: #34383d; transform: rotate(-90deg); }
+progress::-webkit-progress-bar { background: #34383d; border-radius: 8px; }
+progress::-webkit-progress-value { background: var(--accent); border-radius: 8px; }
+#percent { font: 500 38px/1.1 "Avenir Next", system-ui, sans-serif; letter-spacing: -1.5px; font-variant-numeric: tabular-nums; }
+#title { font-size: 16px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+.transfer { grid-template-columns: minmax(0, 1fr); }
+.transfer .progress-rail, .transfer #percent { display: none; }
+.transfer[data-state="downloading"], .transfer[data-state="complete"] { grid-template-columns: 8px minmax(0, 1fr); }
+.transfer[data-state="downloading"] .progress-rail, .transfer[data-state="complete"] .progress-rail,
+.transfer[data-state="downloading"] #percent, .transfer[data-state="complete"] #percent { display: block; }
+.transfer[data-state="downloading"] #title, .transfer[data-state="complete"] #title { font-size: 12px; font-weight: 400; color: var(--muted); margin-bottom: 8px; }
+.transfer[data-state="complete"] #percent { font-size: 28px; letter-spacing: -.5px; }
+.transfer #status { margin-top: 8px; color: var(--muted); line-height: 1.5; }
+.field { display: block; margin: 12px 0; }
+.field span { display: block; margin-bottom: 6px; font-size: 11px; font-weight: 500; color: var(--muted); }
+.field input, .field select { width: 100%; min-height: 34px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: var(--surface); font: inherit; font-size: 12px; }
+.link-field { display: flex; align-items: flex-end; gap: 8px; }
+.link-field .field { flex: 1; min-width: 0; margin: 0; }
+.link-field button { min-height: 34px; font-size: 12px; }
+.fields .field { min-width: 0; }
+#quality { width: 145px; }
+.check { display: flex; gap: 8px; min-height: 32px; margin: 14px 0 4px; align-items: flex-start; cursor: pointer; font-size: 12px; }
+.check input { width: 16px; height: 16px; accent-color: var(--accent); margin: 1px 0; }
+small { display: block; color: var(--muted); font-size: 10px; margin-top: 3px; }
+.manager .actions .primary { flex: 1; }
+.manager .actions button { min-height: 36px; }

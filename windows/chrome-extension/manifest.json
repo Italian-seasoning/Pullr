@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Pullr — Video Downloader",
+  "description": "Capture embedded videos and save direct files or standard HLS streams locally. No account, daily quota, or desktop helper.",
+  "version": "0.3.0",
+  "minimum_chrome_version": "125",
+  "permissions": ["activeTab", "storage", "tabs", "webRequest", "declarativeNetRequestWithHostAccess", "clipboardRead"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    { "matches": ["http://*/*", "https://*/*"], "js": ["content-bridge.js"], "all_frames": true, "match_about_blank": true, "match_origin_as_fallback": true, "run_at": "document_start" },
+    { "matches": ["http://*/*", "https://*/*"], "js": ["page-capture.js"], "all_frames": true, "match_about_blank": true, "match_origin_as_fallback": true, "run_at": "document_start", "world": "MAIN" }
+  ],
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'self'" },
+  "action": { "default_title": "Find videos on this page", "default_popup": "popup.html", "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png" } }
+}

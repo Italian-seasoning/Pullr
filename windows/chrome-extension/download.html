@@ -1,0 +1,10 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Download video — Pullr</title><link rel="stylesheet" href="ui.css"></head>
+<body class="manager"><main><header><h1><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/></svg>Pullr</h1></header>
+<section class="transfer" data-state="idle" aria-label="Download status"><div class="progress-rail"><progress id="progress" value="0" max="100" aria-label="Download progress"></progress></div><div><p id="title">Video</p><p id="percent" aria-hidden="true">0%</p><p id="status" role="status" aria-live="polite">Paste a link to begin.</p></div></section>
+<div class="link-field"><label class="field"><span>Video link</span><input id="url" type="url" spellcheck="false" placeholder="https://…/video.m3u8"></label><button id="inspect" type="button">Check video</button></div>
+<label class="check"><input id="use-login" type="checkbox"><span>Use site login<small>Includes Chrome cookies for this download.</small></span></label>
+<div class="fields"><label class="field" id="quality-field" hidden><span>Quality</span><select id="quality"></select></label>
+<label class="field"><span>Filename</span><input id="filename" value="video.mp4"></label></div>
+<div class="actions"><button id="save" class="primary" type="button" disabled>Download</button><button id="cancel" type="button" disabled>Cancel</button></div>
+<p class="hint">Keep this tab open while downloading.</p>
+</main><script src="vendor/mux.min.js"></script><script src="dlp.js"></script><script src="download.js"></script></body></html>

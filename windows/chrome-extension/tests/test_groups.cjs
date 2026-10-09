@@ -1,0 +1,10 @@
+const assert = require('node:assert/strict');
+require('../stream-capture.js');
+const { groupedStreams } = PullrStreamCapture;
+const master = { kind: 'hls', url: 'https://cdn.example.com/master.m3u8', manifestRole: 'master', relatedURLs: ['https://other.example.com/720.m3u8?token=old'] };
+const child = { kind: 'hls', url: 'https://other.example.com/720.m3u8?token=new', manifestRole: 'media' };
+const separate = { kind: 'hls', url: 'https://cdn.example.com/other.m3u8' };
+assert.deepEqual(groupedStreams([child, master, separate]), [master, separate]);
+assert.deepEqual(groupedStreams([child, separate]), [child, separate], 'Same host or folder alone does not prove a relationship');
+assert.deepEqual(groupedStreams([master, {...child, kind:'direct'}]).length, 2, 'Direct files remain independently selectable');
+console.log('Grouping checks passed: explicit playlist relationships, signed URL refresh, unrelated streams preserved.');
