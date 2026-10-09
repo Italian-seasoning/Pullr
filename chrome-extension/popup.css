@@ -5,7 +5,7 @@
   --glass-strong: rgba(30, 35, 42, 0.9);
   --text: rgba(255, 255, 255, 0.92);
   --muted: rgba(255, 255, 255, 0.66);
-  --accent: #b7d3ba;
+  --accent: #d4d2ce;
   --border: rgba(255, 255, 255, 0.13);
   --highlight: rgba(255, 255, 255, 0.07);
   --shadow: rgba(0, 0, 0, 0.32);
@@ -150,7 +150,7 @@ button {
   min-height: 38px;
   border: 0;
   border-radius: 6px;
-  color: #142019;
+  color: #171717;
   background: var(--accent);
   font: inherit;
   font-weight: 650;
@@ -204,11 +204,11 @@ button:focus-visible { outline: 2px solid rgba(130, 174, 255, 0.9); outline-offs
 
 .view-switcher { display:flex; gap:4px; margin-bottom:18px; border-bottom:1px solid var(--border); padding-bottom:8px; }
 .view-switcher button { background:transparent; color:var(--muted); font-size:12px; font-weight:500; min-height:40px; }
-.view-switcher button[aria-pressed="true"] { background:#24372b; color:#d6ead9; }
+.view-switcher button[aria-pressed="true"] { background:#292929; color:#e2e0dc; }
 header { border:0; padding:6px 0 12px; background:transparent; }.mark { box-shadow:none; }
 #send-page { padding:12px; }.capture-help { font-size:11px; margin:8px 0 18px; }
 .hours-settings { background:transparent; border:0; padding:0; }.tracking-help { font-size:12px; line-height:1.6; margin:8px 0 12px; }
-#tracking-sync { background:#1e2b23; color:#c4d7c8; padding:9px 10px; border-radius:4px; font-size:11px; margin-bottom:15px; }#tracking-sync.needs-sync { background:#342a1c; color:#ebcf9a; }
+#tracking-sync { background:#252525; color:#ceccc7; padding:9px 10px; border-radius:4px; font-size:11px; margin-bottom:15px; }#tracking-sync.needs-sync { background:#342a1c; color:#ebcf9a; }
 .toggle-row { padding:9px 0 14px; border-bottom:1px solid var(--border); }.toggle-row input { width:22px; height:22px; }
 .stream strong,.stream small { display:block; overflow:hidden; text-overflow:ellipsis; }.stream small { color:var(--muted); margin-top:4px; font-size:10px; font-weight:400; }
 #music,#detected { background:transparent; padding:13px 0; border:0; border-top:1px solid var(--border); border-radius:0; }

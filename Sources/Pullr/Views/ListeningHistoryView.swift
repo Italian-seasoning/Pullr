@@ -1,4 +1,5 @@
 import Combine
+import Charts
 import SwiftUI
 
 struct ListeningHistoryView: View {
@@ -145,8 +146,6 @@ struct ListeningHistoryView: View {
     }
 
     private var comparisonColor: Color {
-        if case .percentage(let value) = insights.week.comparison, value < 0 { return AppTheme.success }
-        if case .percentage(let value) = insights.week.comparison, value > 0 { return AppTheme.warning }
         return AppTheme.secondaryText
     }
 
@@ -199,28 +198,59 @@ private struct ListeningMetric: View {
 private struct PlaybackWeekChart: View {
     var days: [PlaybackDay]
     var duration: (Double) -> String
+    @State private var selectedDate: Date?
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 10) {
-            ForEach(days) { day in
-                VStack(spacing: 6) {
-                    Spacer(minLength: 0)
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(day.seconds > 0 ? AppTheme.accent : AppTheme.panelStroke)
-                        .frame(height: max(4, 92 * day.seconds / maxSeconds))
-                    Text(day.date.formatted(.dateTime.weekday(.narrow)))
-                        .font(.caption2)
-                        .foregroundStyle(AppTheme.secondaryText)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("Daily active time").font(.callout.weight(.semibold))
+                Spacer()
+                if let selectedDay {
+                    Text("\(selectedDay.date.formatted(.dateTime.weekday(.abbreviated))): \(duration(selectedDay.seconds))")
+                        .font(.caption.monospacedDigit())
+                } else {
+                    Text("Select a day for details").font(.caption)
                 }
-                .frame(maxWidth: .infinity)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(day.date.formatted(.dateTime.weekday(.wide)))
-                .accessibilityValue(duration(day.seconds))
             }
+            .foregroundStyle(AppTheme.secondaryText)
+            Chart {
+                ForEach(days) { day in
+                    BarMark(x: .value("Day", day.date, unit: .day), y: .value("Minutes", day.seconds / 60))
+                        .cornerRadius(3)
+                        .foregroundStyle(AppTheme.accent.opacity(selectedDay == nil || selectedDay?.id == day.id ? 0.9 : 0.35))
+                        .accessibilityLabel(day.date.formatted(.dateTime.weekday(.wide)))
+                        .accessibilityValue(duration(day.seconds))
+                }
+                if let selectedDay {
+                    RuleMark(x: .value("Selected day", selectedDay.date, unit: .day))
+                        .foregroundStyle(AppTheme.secondaryText.opacity(0.4))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                }
+            }
+            .chartXSelection(value: $selectedDate)
+            .chartYScale(domain: 0...max(30, maxSeconds / 60))
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day)) { _ in
+                    AxisValueLabel(format: .dateTime.weekday(.abbreviated))
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
+                    AxisGridLine().foregroundStyle(AppTheme.panelStroke)
+                    AxisValueLabel {
+                        if let minutes = value.as(Double.self) { Text(duration(minutes * 60)) }
+                    }
+                }
+            }
+            .frame(height: 160)
         }
-        .frame(height: 120)
-        .padding(12)
+        .padding(16)
         .glassPanel(cornerRadius: 14, material: .ultraThinMaterial)
+    }
+
+    private var selectedDay: PlaybackDay? {
+        guard let selectedDate else { return nil }
+        return days.first { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) }
     }
 
     private var maxSeconds: Double {
