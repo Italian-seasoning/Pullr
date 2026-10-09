@@ -19,6 +19,27 @@ let currentSite = null;
 let allowedSites = [];
 
 const setStatus = (message) => { status.textContent = message; };
+for (const button of document.querySelectorAll('[data-view]')) {
+  button.addEventListener('click', () => {
+    const tracking = button.dataset.view === 'tracking';
+    document.querySelector('#capture-view').hidden = tracking;
+    document.querySelector('#tracking-view').hidden = !tracking;
+    for (const other of document.querySelectorAll('[data-view]')) other.setAttribute('aria-pressed', String(other === button));
+  });
+}
+
+function renderTrackingSync(settings) {
+  const target = document.querySelector('#tracking-sync');
+  const state = settings.websiteTrackingSync;
+  target.textContent = !settings.hoursTrackingEnabled ? 'Recording is off.'
+    : state === 'full' ? 'Recording paused: reconnect the native helper to save pending time.'
+    : state === 'waiting' ? 'Saved in this browser. Waiting for the native helper to sync.'
+    : 'Recording locally. Pullr can stay closed.';
+  target.classList.toggle('needs-sync', state === 'waiting' || state === 'full');
+}
+chrome.storage.onChanged.addListener((_changes, area) => {
+  if (area === 'local') chrome.storage.local.get(['hoursTrackingEnabled', 'websiteTrackingSync']).then(renderTrackingSync);
+});
 
 function isWebURL(value) {
   try {
@@ -190,7 +211,11 @@ function renderStreams(streams, tab, showAll = false) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "stream";
-    button.textContent = streamName(stream);
+    const title = document.createElement('strong');
+    title.textContent = `↓ Send ${stream.label} to Pullr`;
+    const detail = document.createElement('small');
+    detail.textContent = streamName(stream);
+    button.append(title, detail);
     button.title = stream.url;
     button.addEventListener("click", () => sendToPullr(stream, stream.initiator || tab.url, tab.id, tab.windowId));
     streamList.append(button);
@@ -230,8 +255,8 @@ async function refresh() {
       : (currentMusic?.title || tab.title || "Current YouTube track");
   }
   sendPageButton.disabled = !preferredStream;
-  sendPageButton.textContent = preferredStream ? "Review detected stream" : "No stream detected";
-  setStatus(preferredStream ? "Ready to send the most recent detected manifest." : "Play the video, then reopen Pullr.");
+  sendPageButton.textContent = preferredStream ? "Send detected video to Pullr" : "No stream detected — play the video first";
+  setStatus(preferredStream ? "Ready to send. Downloads open in Pullr." : "Play the video, then reopen this extension.");
 }
 
 sendPageButton.addEventListener("click", async () => {
@@ -275,10 +300,11 @@ allowSiteButton.addEventListener("click", async () => {
   setStatus(`Tracking ${currentSite} while Chrome is focused.`);
 });
 
-chrome.storage.local.get(["hoursTrackingEnabled", "allowedSites"])
+chrome.storage.local.get(["hoursTrackingEnabled", "allowedSites", "websiteTrackingSync"])
   .then((settings) => {
     hoursToggle.checked = settings.hoursTrackingEnabled === true;
     allowedSites = Array.isArray(settings.allowedSites) ? settings.allowedSites : [];
     renderAllowedSites();
+    renderTrackingSync(settings);
   });
 refresh().catch(() => setStatus("Pullr could not inspect this tab."));

@@ -2,6 +2,11 @@
 import base64
 from pathlib import Path
 import tempfile
+import io
+import json
+import struct
+from types import SimpleNamespace
+from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 
 from pullr_native_host import (
@@ -11,6 +16,7 @@ from pullr_native_host import (
     save_listening_event,
     save_website_event,
     write_diagnostic,
+    main,
 )
 
 
@@ -63,8 +69,27 @@ with tempfile.TemporaryDirectory() as directory:
         "seconds": 10,
     }, directory=directory, now=1234)
     assert private_event["site"] == "example.com"
-    assert private_event["title"] == "Private page title"
-    assert private_event["url"] == "https://example.com/private/path?episode=7"
+    assert private_event["title"] == "example.com"
+    assert private_event["url"] == "https://example.com/"
+    queued = {"id":"12345678-1234-4234-8234-123456789abc", "url":"https://example.com/", "seconds":30, "recordedAt":1000}
+    save_website_event(queued, directory=directory, now=1234)
+    save_website_event(queued, directory=directory, now=1234)
+    records = (Path(directory) / "website-activity.jsonl").read_text().splitlines()
+    assert sum(queued["id"] in record for record in records) == 1
+    assert __import__("json").loads(records[-1])["recordedAt"] == 1000
+
+    # Exercise Chrome's framed stdio route without opening or depending on Pullr.
+    message = json.dumps({"action":"trackWebsite", "url":"https://example.com/", "seconds":5}).encode()
+    reply = io.BytesIO()
+    with patch('sys.stdin', SimpleNamespace(buffer=io.BytesIO(struct.pack('<I', len(message)) + message))), \
+         patch('sys.stdout', SimpleNamespace(buffer=reply)), \
+         patch('pathlib.Path.home', return_value=Path(directory)), \
+         patch('subprocess.run', side_effect=AssertionError('Tracking must not launch the app')):
+        main()
+    framed = reply.getvalue()
+    assert struct.unpack('<I', framed[:4])[0] == len(framed[4:])
+    assert json.loads(framed[4:]) == {"ok":True}
+    assert (Path(directory) / 'Library/Application Support/Pullr/website-activity.jsonl').exists()
 
     assert write_diagnostic("findAppleMusic", "no_match", directory=directory, now=1234)
     diagnostic = (Path(directory) / "native-host.jsonl").read_text()

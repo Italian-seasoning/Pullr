@@ -38,6 +38,10 @@ Download the latest DMG from [Releases](https://github.com/Italian-seasoning/Pul
 
 The extension can send supported pages to Pullr and match YouTube tracks in Apple Music. Website and YouTube hours tracking is optional and off by default; enable it from the extension popup.
 
+The popup separates **Capture media** and **Time tracking**, with labelled actions and a local sync status. Add an allowed website before enabling recording. The browser and native messaging helper record active time even when Pullr is quit; reopening Pullr reads the saved records. If the helper is unavailable, segments wait in local browser storage and retry automatically. Recording pauses at 2,000 pending segments until syncing recovers. Retries retain their original timestamps and avoid duplicate recent acknowledgements. Private/incognito tabs are excluded; non-YouTube records retain only the domain. Reload the unpacked extension after updating its files.
+
+The native app uses flat dark panels and a time dashboard with recorded totals, website counts, a weekly chart, and per-site detail. Empty days display zero rather than a fabricated minute of activity.
+
 ## Build and test
 
 ```sh
@@ -47,6 +51,7 @@ node chrome-extension/test_music_tracker.js
 node chrome-extension/test_page_capture.js
 node chrome-extension/test_stream_capture.js
 node chrome-extension/test_website_tracker.js
+node chrome-extension/test_activity_outbox.js
 ./script/build_and_run.sh --verify
 ```
 

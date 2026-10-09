@@ -5,23 +5,21 @@
   --glass-strong: rgba(30, 35, 42, 0.9);
   --text: rgba(255, 255, 255, 0.92);
   --muted: rgba(255, 255, 255, 0.66);
-  --accent: #3b82f6;
+  --accent: #b7d3ba;
   --border: rgba(255, 255, 255, 0.13);
   --highlight: rgba(255, 255, 255, 0.07);
   --shadow: rgba(0, 0, 0, 0.32);
 }
 
 * { box-sizing: border-box; }
+[hidden] { display:none!important; }
 
 body {
   width: 360px;
   margin: 0;
   font: 14px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text);
-  background:
-    radial-gradient(circle at 8% 0%, rgba(59, 130, 246, 0.22), transparent 42%),
-    radial-gradient(circle at 100% 100%, rgba(45, 123, 111, 0.17), transparent 46%),
-    var(--bg);
+  background: var(--bg);
 }
 
 main { padding: 12px; }
@@ -33,10 +31,8 @@ header {
   margin-bottom: 10px;
   padding: 10px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 6px;
   background: var(--glass);
-  box-shadow: inset 0 1px var(--highlight), 0 10px 28px var(--shadow);
-  backdrop-filter: blur(22px) saturate(145%);
 }
 
 .mark {
@@ -63,10 +59,8 @@ p { color: var(--muted); }
   margin-bottom: 10px;
   padding: 11px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 6px;
   background: var(--glass);
-  box-shadow: inset 0 1px var(--highlight), 0 10px 28px var(--shadow);
-  backdrop-filter: blur(22px) saturate(145%);
 }
 
 .hours-settings {
@@ -107,20 +101,23 @@ details p { margin-top: 6px; }
   white-space: nowrap;
 }
 
-.icon-actions { display: flex; gap: 6px; }
+.icon-actions { display: grid; gap: 6px; }
 
 button.icon-button {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  min-height: 38px;
-  padding: 0;
-  place-items: center;
+  display: flex;
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 10px;
+  gap: 9px;
+  align-items: center;
+  text-align: left;
+  font-size: 12px;
 }
 
 .icon-button svg {
   width: 18px;
   height: 18px;
+  flex: 0 0 auto;
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
@@ -152,8 +149,8 @@ button {
   width: 100%;
   min-height: 38px;
   border: 0;
-  border-radius: 11px;
-  color: white;
+  border-radius: 6px;
+  color: #142019;
   background: var(--accent);
   font: inherit;
   font-weight: 650;
@@ -204,3 +201,16 @@ button:focus-visible { outline: 2px solid rgba(130, 174, 255, 0.9); outline-offs
 @media (prefers-reduced-motion: reduce) {
   button:active:not(:disabled) { transform: none; }
 }
+
+.view-switcher { display:flex; gap:4px; margin-bottom:18px; border-bottom:1px solid var(--border); padding-bottom:8px; }
+.view-switcher button { background:transparent; color:var(--muted); font-size:12px; font-weight:500; min-height:40px; }
+.view-switcher button[aria-pressed="true"] { background:#24372b; color:#d6ead9; }
+header { border:0; padding:6px 0 12px; background:transparent; }.mark { box-shadow:none; }
+#send-page { padding:12px; }.capture-help { font-size:11px; margin:8px 0 18px; }
+.hours-settings { background:transparent; border:0; padding:0; }.tracking-help { font-size:12px; line-height:1.6; margin:8px 0 12px; }
+#tracking-sync { background:#1e2b23; color:#c4d7c8; padding:9px 10px; border-radius:4px; font-size:11px; margin-bottom:15px; }#tracking-sync.needs-sync { background:#342a1c; color:#ebcf9a; }
+.toggle-row { padding:9px 0 14px; border-bottom:1px solid var(--border); }.toggle-row input { width:22px; height:22px; }
+.stream strong,.stream small { display:block; overflow:hidden; text-overflow:ellipsis; }.stream small { color:var(--muted); margin-top:4px; font-size:10px; font-weight:400; }
+#music,#detected { background:transparent; padding:13px 0; border:0; border-top:1px solid var(--border); border-radius:0; }
+#allowed-sites:empty::after { content:"No websites added yet."; display:block; color:var(--muted); font-size:11px; padding:12px 0; }
+.privacy { border-top:1px solid var(--border); padding-top:12px; margin-top:18px; }#status { text-align:left; min-height:32px; line-height:1.5; }

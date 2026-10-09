@@ -1,4 +1,4 @@
-importScripts("stream-capture.js", "website-tracker.js");
+importScripts("stream-capture.js", "website-tracker.js", "activity-outbox.js");
 
 const keyForTab = (tabId) => `streams:${tabId}`;
 const musicKeyForTab = (tabId) => `music:${tabId}`;
@@ -34,16 +34,20 @@ async function refreshWebsiteActivity() {
   }
 
   const segment = PullrWebsiteTracker.completedSegment(previous, now);
-  if (segment && PullrWebsiteTracker.isAllowed(segment.site, settings[allowedSitesKey])) {
-    await chrome.runtime.sendNativeMessage("app.pullr.native", {
+  const canRecord = await PullrActivityOutbox.sync(
+    chrome.storage.local,
+    message => chrome.runtime.sendNativeMessage("app.pullr.native", message),
+    segment && PullrWebsiteTracker.isAllowed(segment.site, settings[allowedSitesKey]) ? {
       action: "trackWebsite",
+      id: crypto.randomUUID(),
+      recordedAt: now / 1000,
       url: segment.url,
       title: segment.title,
       seconds: segment.seconds
-    }).catch(() => {});
-  }
+    } : null
+  );
 
-  if (next) await chrome.storage.session.set({ [activityKey]: next });
+  if (next && canRecord) await chrome.storage.session.set({ [activityKey]: next });
   else await chrome.storage.session.remove(activityKey);
 }
 

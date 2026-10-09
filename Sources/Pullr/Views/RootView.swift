@@ -9,24 +9,8 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
-            FrostedGlassEffect(material: .underWindowBackground, blendingMode: .behindWindow)
-                .ignoresSafeArea()
             AppTheme.baseBackground
                 .ignoresSafeArea()
-            RadialGradient(
-                colors: [AppTheme.subtleAccent.opacity(0.13), .clear],
-                center: .topLeading,
-                startRadius: 24,
-                endRadius: 620
-            )
-            .ignoresSafeArea()
-            RadialGradient(
-                colors: [Color(red: 0.18, green: 0.42, blue: 0.38).opacity(0.10), .clear],
-                center: .bottomTrailing,
-                startRadius: 20,
-                endRadius: 560
-            )
-            .ignoresSafeArea()
 
             NavigationSplitView {
                 MediaDeskSidebar(selection: $store.selectedSection)
@@ -40,9 +24,13 @@ struct RootView: View {
 
                     HStack(spacing: 0) {
                         VStack(spacing: 0) {
-                            ToolbarView(isInspectorPresented: $isInspectorPresented)
+                            if store.selectedSection == .downloads {
+                                ToolbarView(isInspectorPresented: $isInspectorPresented)
+                            }
                             sectionContent
-                            MediaDeskStatusBar()
+                            if store.selectedSection == .downloads {
+                                MediaDeskStatusBar()
+                            }
                         }
                         .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
 
@@ -90,7 +78,7 @@ struct RootView: View {
                 PlaylistsView()
             }
         case .listening:
-            SectionContainer(title: "Activity", subtitle: "Video playback from Chrome and Comet, stored locally") {
+            SectionContainer(title: "Time tracking", subtitle: "Active time on your allowed websites · stored on this Mac") {
                 ListeningHistoryView()
             }
         case .history:

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import base64
 import binascii
+import fcntl
 from difflib import SequenceMatcher
 import json
 import os
@@ -212,20 +213,34 @@ def save_website_event(message, directory=None, now=None):
         return None
 
     is_youtube = host == "youtu.be" or host == "youtube.com" or host.endswith(".youtube.com")
+    try:
+        event_id = str(uuid.UUID(message["id"])) if "id" in message else str(uuid.uuid4())
+        recorded_at = float(message.get("recordedAt", now if now is not None else time.time()))
+    except (ValueError, TypeError, AttributeError):
+        return None
+    if not 0 <= recorded_at <= (now if now is not None else time.time()) + 60:
+        return None
     event = {
-        "id": str(uuid.uuid4()),
+        "id": event_id,
         "site": "youtube.com" if is_youtube else host.removeprefix("www."),
-        "title": _safe_text(message.get("title"), 240),
-        "url": canonical_url,
+        "title": _safe_text(message.get("title"), 240) if is_youtube else host.removeprefix("www."),
+        "url": canonical_url if is_youtube else f"{parsed.scheme}://{host}/",
         "seconds": round(seconds, 3),
-        "recordedAt": float(now if now is not None else time.time()),
+        "recordedAt": recorded_at,
         "isYouTube": is_youtube,
     }
     root = Path(directory) if directory else Path.home() / "Library/Application Support/Pullr"
     root.mkdir(parents=True, exist_ok=True)
     payload = (json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
-    descriptor = os.open(root / "website-activity.jsonl", os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600)
+    descriptor = os.open(root / "website-activity.jsonl", os.O_APPEND | os.O_CREAT | os.O_RDWR, 0o600)
     try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        if "id" in message:
+            # ponytail: recent acknowledgements fit in 2 MB; use SQLite if multi-client replay grows.
+            size = os.lseek(descriptor, 0, os.SEEK_END)
+            os.lseek(descriptor, max(0, size - 2_000_000), os.SEEK_SET)
+            if f'"id":"{event_id}"'.encode() in os.read(descriptor, 2_000_000):
+                return event
         os.write(descriptor, payload)
     finally:
         os.close(descriptor)

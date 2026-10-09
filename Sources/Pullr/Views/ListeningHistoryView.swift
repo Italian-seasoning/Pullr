@@ -9,19 +9,17 @@ struct ListeningHistoryView: View {
     private let refreshTimer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        Group {
-            if store.websiteActivity.isEmpty && store.listeningHistory.isEmpty {
-                ContentUnavailableView {
-                    Label("No activity yet", systemImage: "chart.bar.xaxis")
-                } description: {
-                    Text("Enable hours tracking in the Pullr extension to begin.")
-                }
-            } else {
+        let snapshot = insights
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        Label("Recording continues with Pullr closed. Manage allowed sites in the browser extension.", systemImage: "checkmark.shield")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.secondaryText)
+                            .padding(.vertical, 4)
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 10)], spacing: 10) {
-                            ListeningMetric(title: "Lifetime", value: duration(insights.lifetimeSeconds), icon: "infinity")
-                            ListeningMetric(title: "Selected week", value: duration(insights.week.totalSeconds), icon: "calendar")
+                            ListeningMetric(title: "All recorded time", value: duration(snapshot.lifetimeSeconds), icon: "clock")
+                            ListeningMetric(title: isCurrentWeek ? "This week" : "Selected week", value: duration(snapshot.week.totalSeconds), icon: "calendar")
+                            ListeningMetric(title: "Websites in selected week", value: String(snapshot.week.sites.count), icon: "globe")
                         }
 
                         HStack {
@@ -46,35 +44,39 @@ struct ListeningHistoryView: View {
                             if !isCurrentWeek {
                                 Button("This Week") { selectedWeek = Date() }
                             }
-                            Button("Clear", role: .destructive) {
+                            Button("Clear history…", role: .destructive) {
                                 isClearConfirmationPresented = true
                             }
                         }
                         .padding(12)
                         .glassPanel(cornerRadius: 14, material: .ultraThinMaterial)
 
-                        PlaybackWeekChart(days: insights.week.days, duration: duration)
+                        PlaybackWeekChart(days: snapshot.week.days, duration: duration)
 
-                        if insights.week.sites.isEmpty {
-                            ContentUnavailableView("No playback this week", systemImage: "play.slash")
+                        if snapshot.week.sites.isEmpty {
+                            ContentUnavailableView {
+                                Label("No recorded time this week", systemImage: "clock")
+                            } description: {
+                                Text("In the Pullr extension, open Time tracking, add a website, and enable recording. The native helper saves time even when this app is quit.")
+                            }
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 24)
                         } else {
                             Text("Websites")
                                 .font(.headline)
                             LazyVStack(spacing: 8) {
-                                ForEach(insights.week.sites) { site in
+                                ForEach(snapshot.week.sites) { site in
                                     DisclosureGroup(isExpanded: expansionBinding(for: site.id)) {
                                         VStack(spacing: 8) {
                                             ForEach(site.videos) { video in
                                                 HStack(spacing: 10) {
-                                                    Image(systemName: "play.fill")
+                                                    Image(systemName: site.site == "youtube.com" ? "play.fill" : "globe")
                                                         .font(.caption)
                                                         .foregroundStyle(AppTheme.accent)
                                                     Text(video.title)
                                                         .lineLimit(2)
                                                     Spacer()
-                                                    Text("\(video.sessionCount) \(video.sessionCount == 1 ? "play" : "plays")")
+                                                    Text("\(video.sessionCount) \(video.sessionCount == 1 ? "session" : "sessions")")
                                                         .font(.caption)
                                                         .foregroundStyle(AppTheme.tertiaryText)
                                                     Text(duration(video.seconds))
@@ -97,7 +99,7 @@ struct ListeningHistoryView: View {
                                                 .foregroundStyle(AppTheme.secondaryText)
                                         }
                                         .accessibilityElement(children: .combine)
-                                        .accessibilityLabel("\(site.site), \(duration(site.seconds)), \(site.videos.count) videos")
+                                        .accessibilityLabel("\(site.site), \(duration(site.seconds)), \(site.videos.count) entries")
                                     }
                                     .padding(12)
                                     .glassPanel(cornerRadius: 12, material: .thinMaterial)
@@ -107,8 +109,6 @@ struct ListeningHistoryView: View {
                     }
                     .padding(.vertical, 4)
                 }
-            }
-        }
         .onAppear { store.refreshListeningHistory() }
         .onReceive(refreshTimer) { _ in store.refreshListeningHistory() }
         .confirmationDialog("Clear all activity history?", isPresented: $isClearConfirmationPresented) {
@@ -165,6 +165,8 @@ struct ListeningHistoryView: View {
     }
 
     private func duration(_ seconds: Double) -> String {
+        if seconds <= 0 { return "0 min" }
+        if seconds < 60 { return "\(Int(seconds)) sec" }
         if seconds >= 3_600 { return String(format: "%.1f h", seconds / 3_600) }
         return "\(max(1, Int(seconds / 60))) min"
     }
@@ -181,7 +183,7 @@ private struct ListeningMetric: View {
                 .foregroundStyle(AppTheme.accent)
             VStack(alignment: .leading, spacing: 2) {
                 Text(value)
-                    .font(.title3.weight(.semibold).monospacedDigit())
+                    .font(.system(size: 28, weight: .medium).monospacedDigit())
                 Text(title)
                     .font(.caption)
                     .foregroundStyle(AppTheme.secondaryText)
