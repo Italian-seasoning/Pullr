@@ -52,6 +52,7 @@ node chrome-extension/test_page_capture.js
 node chrome-extension/test_stream_capture.js
 node chrome-extension/test_website_tracker.js
 node chrome-extension/test_activity_outbox.js
+node chrome-extension/test_background_activity.js
 ./script/build_and_run.sh --verify
 ```
 

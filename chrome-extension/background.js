@@ -20,6 +20,12 @@ async function refreshWebsiteActivity() {
   ]);
   if (!PullrWebsiteTracker.isTrackingEnabled(settings)) {
     await chrome.storage.session.remove(activityKey);
+    await PullrActivityOutbox.sync(
+      chrome.storage.local,
+      message => chrome.runtime.sendNativeMessage("app.pullr.native", message)
+    );
+    const pending = await chrome.storage.local.get("activityOutbox");
+    if (!pending.activityOutbox?.length) await chrome.alarms.clear(activityKey);
     return;
   }
   const previous = stored[activityKey];
@@ -56,17 +62,22 @@ function queueWebsiteActivityRefresh() {
 }
 
 async function configureWebsiteActivity() {
-  const settings = await chrome.storage.local.get(trackingSettingKey);
-  if (PullrWebsiteTracker.isTrackingEnabled(settings)) {
+  const settings = await chrome.storage.local.get([trackingSettingKey, "activityOutbox"]);
+  // Keep retrying captured records even after fresh recording is disabled.
+  if (PullrWebsiteTracker.isTrackingEnabled(settings) || settings.activityOutbox?.length) {
     await chrome.alarms.create(activityKey, { periodInMinutes: 0.5 });
-    queueWebsiteActivityRefresh();
+    await refreshWebsiteActivity();
   } else {
     await chrome.alarms.clear(activityKey);
     await chrome.storage.session.remove(activityKey);
   }
 }
 
-void configureWebsiteActivity();
+function queueWebsiteActivityConfiguration() {
+  activityRefresh = activityRefresh.then(configureWebsiteActivity, configureWebsiteActivity);
+}
+
+queueWebsiteActivityConfiguration();
 
 async function streamsForTab(tabId) {
   const key = keyForTab(tabId);
@@ -235,6 +246,6 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === activityKey) queueWebsiteActivityRefresh();
 });
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName === "local" && changes[trackingSettingKey]) void configureWebsiteActivity();
+  if (areaName === "local" && changes[trackingSettingKey]) queueWebsiteActivityConfiguration();
   else if (areaName === "local" && changes[allowedSitesKey]) queueWebsiteActivityRefresh();
 });
