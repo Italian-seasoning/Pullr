@@ -2,14 +2,18 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${1:-1.1.1}"
+VERSION="${1:-1.1.2}"
 REPOSITORY="${GITHUB_REPOSITORY:-Italian-seasoning/Pullr}"
 TAG="v$VERSION"
-RELEASE_DIR="$ROOT/dist/github-release"
+RELEASE_DIR="$ROOT/dist/github-release/$TAG"
 ARCHIVE_NAME="Pullr-$VERSION-macOS.zip"
 DMG_NAME="Pullr-$VERSION-macOS.dmg"
-SPARKLE_BIN="$ROOT/.build/artifacts/sparkle/Sparkle/bin"
+SPARKLE_BIN="${SPARKLE_BIN_OVERRIDE:-$ROOT/.build/artifacts/sparkle/Sparkle/bin}"
 REUSE_APP="${PULLR_REUSE_APP:-0}"
+if [[ "$REUSE_APP" == "1" ]]; then
+  echo "Build from source for releases; reusing an app can publish stale code or build numbers." >&2
+  exit 1
+fi
 
 command -v gh >/dev/null || { echo "GitHub CLI is required." >&2; exit 1; }
 gh release view "$TAG" --repo "$REPOSITORY" >/dev/null 2>&1 && { echo "$TAG already exists." >&2; exit 1; }
@@ -53,9 +57,9 @@ APPCAST_STAGE="$RELEASE_DIR/appcast-source"
 mkdir -p "$APPCAST_STAGE"
 ditto "$RELEASE_DIR/$DMG_NAME" "$APPCAST_STAGE/$DMG_NAME"
 cat >"$APPCAST_STAGE/Pullr-$VERSION-macOS.md" <<NOTES
-Pullr $VERSION keeps the Start/Stop button visible with the sidebar open and lets capped video presets accept formats with unreported height.
+Pullr $VERSION publishes the compact interface and daily activity chart, with background tracking preserved while the app is closed.
 
-The Chrome extension now counts time on focused tabs only for websites added to its allowlist. Activity stays on this Mac and can be cleared from Pullr.
+This release advances the Sparkle build number and verifies the update archive and signing key before publication.
 
 This build is ad-hoc signed and not Apple-notarized. Control-click Pullr and choose Open on first launch.
 NOTES
@@ -70,6 +74,7 @@ cp "$APPCAST_STAGE/Pullr-$VERSION-macOS.md" "$RELEASE_DIR/Pullr-$VERSION-macOS.m
 rm -rf "$APPCAST_STAGE"
 xmllint --noout "$RELEASE_DIR/appcast.xml"
 rg -q 'sparkle:edSignature=' "$RELEASE_DIR/appcast.xml"
+python3 "$ROOT/script/verify_update.py" "$APP" "$RELEASE_DIR/$DMG_NAME" "$RELEASE_DIR/appcast.xml" --sparkle-bin "$SPARKLE_BIN" --repository "$REPOSITORY" --require-newer
 (cd "$RELEASE_DIR" && shasum -a 256 "$ARCHIVE_NAME" "$DMG_NAME" appcast.xml > SHA256SUMS.txt)
 
 if [[ "${PULLR_SKIP_PUBLISH:-0}" == "1" ]]; then

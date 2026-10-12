@@ -5,8 +5,8 @@ MODE="${1:-run}"
 APP_NAME="Pullr"
 BUNDLE_ID="app.pullr.Pullr"
 MIN_SYSTEM_VERSION="14.0"
-VERSION="${PULLR_VERSION:-1.1.1}"
-BUILD_NUMBER="${PULLR_BUILD_NUMBER:-4}"
+VERSION="${PULLR_VERSION:-1.1.2}"
+BUILD_NUMBER="${PULLR_BUILD_NUMBER:-5}"
 CONFIGURATION="${PULLR_CONFIGURATION:-debug}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -21,7 +21,9 @@ INFO_PLIST="$APP_CONTENTS/Info.plist"
 
 cd "$ROOT_DIR"
 
-pkill -x "$APP_NAME" >/dev/null 2>&1 || true
+if [[ "$MODE" != "--package" && "$MODE" != "package" ]]; then
+  pkill -x "$APP_NAME" >/dev/null 2>&1 || true
+fi
 
 BUILD_ARGUMENTS=(-c "$CONFIGURATION")
 if [[ "$CONFIGURATION" == "release" ]]; then
