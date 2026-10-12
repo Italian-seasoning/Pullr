@@ -5,6 +5,7 @@
 <h1 align="center">Pullr</h1>
 
 <p align="center">
+  <a href="https://nolan-mac-apps.nolankrahn.chatgpt.site/apps/pullr">Software showcase</a> ·
   <a href="https://italian-seasoning.github.io/Pullr/">Website</a> ·
   <a href="https://github.com/Italian-seasoning/Pullr/releases/latest">Latest preview</a> ·
   <a href="PRIVACY.md">Privacy</a>
