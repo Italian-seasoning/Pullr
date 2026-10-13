@@ -13,6 +13,33 @@
 
 Pullr is a native macOS download queue for media you own, have permission to save, or can legally access offline. It supports individual links, playlists, direct HLS streams, audio import into Apple Music, and an optional Chrome extension.
 
+## Quick install
+
+```sh
+brew install --cask italian-seasoning/tap/pullr
+```
+
+Install the media tools with `brew install yt-dlp ffmpeg deno`.
+
+Current preview: **1.1.2**. [Download the DMG](https://github.com/Italian-seasoning/Pullr/releases/download/v1.1.2/Pullr-1.1.2-macOS.dmg).
+
+Requires macOS 14 or newer on Apple silicon or Intel.
+
+These previews are not Apple-notarized. Homebrew verifies the archive checksum and leaves Gatekeeper enabled. If macOS blocks the first launch, review the app in **System Settings → Privacy & Security**. Sparkle verifies subsequent in-app updates with its signed feed.
+
+## See the app
+
+![Pullr playlist workspace with season-capture entry point](docs/screenshots/pullr-playlists.png)
+
+![Pullr export presets and format controls](docs/screenshots/pullr-presets.png)
+
+![Pullr dependency status and update controls](docs/screenshots/pullr-dependencies.png)
+
+[Watch the interface walkthrough](docs/screenshots/pullr-walkthrough.mp4). This short sequence shows the captured interface views; it is not a gameplay or download benchmark.
+
+Screenshots show local preview builds. Empty queues and standby states are shown where applicable.
+
+
 ## Requirements
 
 - macOS 14 or newer
@@ -68,3 +95,7 @@ Network access is limited to the links you request, Apple catalog matching, depe
 Pullr does not decrypt DRM, bypass access controls, or automatically copy browser cookies. You are responsible for complying with site terms and applicable law.
 
 See [Privacy](PRIVACY.md) and [Terms of Use](TERMS.md).
+
+## License and attribution
+
+[MIT](LICENSE) — Copyright © 2026 [Italian-seasoning](https://github.com/Italian-seasoning). Forks and redistribution are allowed; retain the copyright and license notice. Please identify independently maintained forks and link back to this project. Third-party components retain their own licenses.
