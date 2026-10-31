@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${1:-1.1.2}"
+VERSION="${1:-1.1.3}"
 REPOSITORY="${GITHUB_REPOSITORY:-Italian-seasoning/Pullr}"
 TAG="v$VERSION"
 RELEASE_DIR="$ROOT/dist/github-release/$TAG"
@@ -27,7 +27,7 @@ if [[ "$REUSE_APP" == "1" ]]; then
   plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP/Contents/Info.plist"
   plutil -replace CFBundleVersion -string "$VERSION" "$APP/Contents/Info.plist"
 else
-  PULLR_CONFIGURATION=release PULLR_VERSION="$VERSION" "$ROOT/script/build_and_run.sh" --package
+  PULLR_CONFIGURATION=release PULLR_ARCHITECTURE=universal PULLR_VERSION="$VERSION" "$ROOT/script/build_and_run.sh" --package
   APP="$ROOT/dist/Pullr.app"
 fi
 

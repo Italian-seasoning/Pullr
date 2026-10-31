@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 struct TestFailure: Error, CustomStringConvertible {
@@ -122,6 +123,17 @@ let tests: [(String, () throws -> Void)] = [
         try expectEqual(request.presetID, ExportPreset.Defaults.bestYouTubeAudio, "Best audio preset should parse")
         try expect(request.startImmediately, "Extension downloads should start immediately")
     }),
+    ("YouTube video deep links avoid stream capture", {
+        let explicit = try unwrap(URL(string: "pullr://add?url=https%3A%2F%2Fyoutube.com%2Fwatch%3Fv%3Dabc&presetID=A1B2C3D4-E5F6-47A8-9B10-111111111111&start=1"), "Video link should parse")
+        let request = try unwrap(BrowserPresetRequest(deepLink: explicit), "YouTube video should use the preset route")
+        try expectEqual(request.presetID, ExportPreset.Defaults.bestMP4, "Video button should use the video preset")
+        try expect(request.startImmediately, "Video button should start the download")
+        try expect(BrowserCaptureSuggestion(deepLink: explicit) == nil, "YouTube pages are not embedded streams")
+        let legacy = try unwrap(URL(string: "pullr://add?url=https%3A%2F%2Fyoutu.be%2Fabc"), "Legacy link should parse")
+        try expectEqual(BrowserPresetRequest(deepLink: legacy)?.presetID, ExportPreset.Defaults.bestMP4, "Older YouTube buttons should still queue videos")
+        let wrapper = try unwrap(URL(string: "pullr://add?url=https%3A%2F%2Fanime.example%2Fwatch%2F1"), "Wrapper should parse")
+        try expect(BrowserPresetRequest(deepLink: wrapper) == nil, "Embedded sites should retain stream capture")
+    }),
     ("Browser capture accepts only local Pullr thumbnails", {
         let appSupport = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let thumbnails = appSupport.appendingPathComponent("Thumbnails", isDirectory: true)
@@ -233,6 +245,22 @@ let tests: [(String, () throws -> Void)] = [
         try expect(arguments.contains("%(playlist_title)s/%(playlist_index)03d - %(title)s.%(ext)s"), "Playlist folder template missing")
         try expect(arguments.contains("--ignore-config"), "Pullr should ignore external yt-dlp config files")
     }),
+    ("YouTube video downloads require HEVC conversion and final paths", {
+        var request = DownloadCommandRequest(url: "https://youtu.be/abc", preset: ExportPreset.defaultPresets[0], outputFolder: "/tmp", namingTemplate: "%(title)s.%(ext)s", playlistOptions: PlaylistOptions(), ffmpegPath: "/opt/homebrew/bin/ffmpeg", advancedArguments: [])
+        try expect(CommandBuilder.requiresHEVC(for: request), "YouTube video should finish as H.265")
+        let arguments = try CommandBuilder.buildArguments(for: request)
+        try expect(arguments.contains("after_move:\(YTDLPService.outputPathPrefix)%(filepath)s"), "Final paths must be reported, even for existing files")
+        try expect(arguments.contains("youtube:player_client=web_embedded,android_vr"), "Video downloads should use clients that expose downloadable YouTube formats")
+        request.preset = try unwrap(ExportPreset.defaultPresets.first { $0.kind == .audio }, "Audio preset missing")
+        try expect(!CommandBuilder.requiresHEVC(for: request), "Audio downloads should not be converted to video")
+        request.preset = try unwrap(ExportPreset.defaultPresets.first { $0.kind == .original }, "Original preset missing")
+        try expect(!CommandBuilder.requiresHEVC(for: request), "Original should preserve source codecs")
+        request.preset = ExportPreset.defaultPresets[0]
+        request.url = "https://youtube.com.evil.example/watch?v=abc"
+        try expect(!CommandBuilder.requiresHEVC(for: request), "Only real YouTube hosts should trigger the conversion")
+        request.url = "https://cdn.example/episode.m3u8"
+        try expect(!CommandBuilder.requiresHEVC(for: request), "Embedded stream downloads should keep their presets")
+    }),
     ("CommandBuilder pins an installed Deno runtime", {
         try expectEqual(
             CommandBuilder.javaScriptRuntimeArguments(candidates: ["/bin/sh"]),
@@ -316,6 +344,7 @@ let tests: [(String, () throws -> Void)] = [
     ("YTDLPService parses output paths and caps logs", {
         try expectEqual(YTDLPService.parseOutputPath("[download] Destination: /tmp/video.mp4"), "/tmp/video.mp4", "Destination path should parse")
         try expectEqual(YTDLPService.parseOutputPath("[Merger] Merging formats into \"/tmp/video.mp4\""), "/tmp/video.mp4", "Quoted path should parse")
+        try expectEqual(YTDLPService.parseOutputPath("\(YTDLPService.outputPathPrefix)/tmp/Video ü 'quoted'.mp4"), "/tmp/Video ü 'quoted'.mp4", "Final paths must preserve spaces, Unicode, and quotes")
 
         var item = DownloadItem(url: "https://youtu.be/abc", selectedPresetID: ExportPreset.Defaults.bestMP4)
         for index in 0..<200 {
@@ -502,11 +531,77 @@ let tests: [(String, () throws -> Void)] = [
             eta: "00:30"
         )
 
-        store.save([item])
-        let restored = try unwrap(store.load().first, "Queue item should restore")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try store.save([item])
+        let restored = try unwrap(try store.load().first, "Queue item should restore")
         try expectEqual(restored.status, .waiting, "Active item should restore as waiting")
         try expectEqual(restored.progress, 0, "Progress should reset after relaunch")
         try expectEqual(restored.title, "Active", "Metadata should remain")
+    }),
+    ("QueueStore surfaces directory, encoding, and write failures", {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let blocker = directory.appendingPathComponent("not-a-directory")
+        try Data([1]).write(to: blocker)
+        for url in [blocker.appendingPathComponent("queue.json"), directory] {
+            var failed = false
+            do { try QueueStore(fileURL: url).save([]) } catch { failed = true }
+            try expect(failed, "Storage errors must reach the caller")
+        }
+        let url = directory.appendingPathComponent("queue.json")
+        let store = QueueStore(fileURL: url)
+        let missing = try store.load()
+        try expect(missing.isEmpty, "A missing file should be an empty queue")
+        try store.save([])
+        let original = try Data(contentsOf: url)
+        var invalid = DownloadItem(url: "https://example.org/video", selectedPresetID: ExportPreset.Defaults.bestMP4)
+        invalid.progress = .nan
+        var failed = false
+        do { try store.save([invalid]) } catch { failed = true }
+        try expect(failed, "Encoding errors must reach the caller")
+        try expectEqual(try Data(contentsOf: url), original, "Failed saves must preserve the previous queue")
+    }),
+    ("QueueStore preserves malformed JSON for recovery before replacement", {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appendingPathComponent("queue.json")
+        let original = Data("{malformed queue".utf8)
+        try original.write(to: url)
+        let store = QueueStore(fileURL: url)
+        var recoveryURL: URL?
+        do { _ = try store.load() }
+        catch QueueStoreError.unreadable(let recovery, _) { recoveryURL = recovery }
+        let recovery = try unwrap(recoveryURL, "Malformed JSON must report its recovery location")
+        try expectEqual(try Data(contentsOf: recovery), original, "Recovery must preserve every original byte")
+        try expectEqual(try Data(contentsOf: url), original, "Loading must leave the original intact")
+        let item = DownloadItem(url: "https://example.org/video", selectedPresetID: ExportPreset.Defaults.bestMP4)
+        try store.save([item])
+        try expectEqual(try store.load().first?.id, item.id, "A replacement queue should persist after recovery")
+        try expectEqual(try Data(contentsOf: recovery), original, "Saving must not replace the recovery copy")
+    }),
+    ("QueueStore blocks replacement when recovery cannot be written", {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+            try? FileManager.default.removeItem(at: directory)
+        }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appendingPathComponent("queue.json")
+        let original = Data("{malformed queue".utf8)
+        try original.write(to: url)
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: directory.path)
+        let store = QueueStore(fileURL: url)
+        var recoveryFailed = false
+        do { _ = try store.load() }
+        catch QueueStoreError.recoveryFailed { recoveryFailed = true }
+        try expect(recoveryFailed, "An unwritable recovery location must be reported")
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+        var saveFailed = false
+        do { try store.save([]) } catch { saveFailed = true }
+        try expect(saveFailed, "Saving must stay blocked after a failed recovery")
+        try expectEqual(try Data(contentsOf: url), original, "The unreadable original must survive later save attempts")
     }),
     ("DownloadLogStore preserves logs before removal", {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -540,6 +635,24 @@ let tests: [(String, () throws -> Void)] = [
         try expect(!log.contains(NSHomeDirectory()), "Logs must redact the home directory")
         try expect(log.contains("~/Downloads/file.m4a"), "Redacted paths should remain useful")
     }),
+    ("YTDLPService cancellation stops descendants holding the output pipe", {
+        let service = YTDLPService()
+        let ready = DispatchSemaphore(value: 0), done = DispatchSemaphore(value: 0)
+        var child: Int32?
+        service.start(ytDLPPath: "/bin/sh", arguments: ["-c", "sleep 3 & echo $!; wait"], eventHandler: { event in
+            if case .log(let line) = event, let pid = Int32(line) {
+                child = pid
+                ready.signal()
+            }
+        }, completion: { _ in done.signal() })
+        defer {
+            service.cancel()
+            if let child { Darwin.kill(child, SIGKILL) }
+        }
+        try expect(ready.wait(timeout: .now() + 2) == .success, "Download subprocess should launch its child")
+        service.cancel()
+        try expect(done.wait(timeout: .now() + 0.5) == .success, "Cancellation must stop child work and release its inherited output pipe")
+    }),
     ("DownloadQueueManager runs multiple processes concurrently", {
         let manager = DownloadQueueManager()
         let firstID = UUID()
@@ -570,6 +683,25 @@ let tests: [(String, () throws -> Void)] = [
         _ = firstDone.wait(timeout: .now() + 2)
         _ = secondDone.wait(timeout: .now() + 2)
         try expect(manager.activeItemIDs().isEmpty, "Processes should be removed after completion")
+    }),
+    ("DownloadQueueManager ignores a cancelled attempt after its retry starts", {
+        let manager = DownloadQueueManager(), itemID = UUID()
+        let reading = DispatchSemaphore(value: 0), release = DispatchSemaphore(value: 0)
+        let staleCompletion = DispatchSemaphore(value: 0), retryDone = DispatchSemaphore(value: 0)
+        manager.startDownload(itemID: itemID, ytDLPPath: "/bin/echo", arguments: ["first\nsecond"], eventHandler: { event in
+            if case .log("first") = event {
+                reading.signal()
+                _ = release.wait(timeout: .now() + 2)
+            }
+        }, completion: { _ in staleCompletion.signal() })
+        try expect(reading.wait(timeout: .now() + 2) == .success, "Original attempt should reach its output handler")
+        manager.cancelDownload(itemID: itemID)
+        manager.startDownload(itemID: itemID, ytDLPPath: "/bin/sleep", arguments: ["0.6"], eventHandler: { _ in }, completion: { _ in retryDone.signal() })
+        release.signal()
+        try expect(staleCompletion.wait(timeout: .now() + 0.2) == .timedOut, "Cancelled attempt must not report completion into a newer retry")
+        try expect(manager.activeItemIDs().contains(itemID), "Old completion must not remove the live retry")
+        try expect(retryDone.wait(timeout: .now() + 2) == .success, "Retry should complete normally")
+        try expect(manager.activeItemIDs().isEmpty, "Retry should be removed after its own completion")
     }),
     ("DownloadQueueManager pauses and resumes a process", {
         let manager = DownloadQueueManager()

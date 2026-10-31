@@ -2,19 +2,16 @@
 import base64
 import binascii
 import fcntl
-from difflib import SequenceMatcher
 import json
 import os
 from pathlib import Path
 import re
 import struct
-import subprocess
 import sys
 import time
 import uuid
 from datetime import datetime, timezone
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
-from urllib.request import urlopen
 
 
 def read_message():
@@ -349,6 +346,8 @@ def main():
         write_diagnostic("trackWebsite", "success" if event else "invalid")
         write_message({"ok": bool(event)})
         return
+
+    import subprocess
 
     if action == "findAppleMusic":
         try:

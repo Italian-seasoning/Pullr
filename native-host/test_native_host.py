@@ -5,6 +5,8 @@ import tempfile
 import io
 import json
 import struct
+import subprocess
+import sys
 from types import SimpleNamespace
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
@@ -21,6 +23,17 @@ from pullr_native_host import (
 
 
 with tempfile.TemporaryDirectory() as directory:
+    tracking_import_check = subprocess.run([sys.executable, "-c", """
+import sys
+class MusicOnlyImports:
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname in {'difflib', 'subprocess', 'urllib.request'}:
+            raise AssertionError('Website tracking loaded music or app-launch code: ' + fullname)
+sys.meta_path.insert(0, MusicOnlyImports())
+from pullr_native_host import save_website_event
+assert save_website_event({'url':'https://example.com/', 'seconds':5}, directory=sys.argv[1])
+""", directory], cwd=Path(__file__).parent, capture_output=True, text=True)
+    assert tracking_import_check.returncode == 0, tracking_import_check.stderr
     jpeg = base64.b64encode(b"\xff\xd8\xff\xd9").decode("ascii")
     link = build_deep_link(
         {

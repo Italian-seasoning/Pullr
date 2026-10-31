@@ -47,6 +47,14 @@ enum URLExtractor {
         normalize(string) != nil
     }
 
+    static func isYouTubeURL(_ string: String) -> Bool {
+        guard let url = URL(string: string),
+              ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
+              let host = url.host?.lowercased()
+        else { return false }
+        return host == "youtu.be" || host == "youtube.com" || host.hasSuffix(".youtube.com")
+    }
+
     static func singleYouTubeVideoURL(_ string: String) -> String {
         guard var components = URLComponents(string: string),
               let host = components.host?.lowercased(),

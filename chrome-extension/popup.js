@@ -13,6 +13,7 @@ const hoursToggle = document.querySelector("#hours-toggle");
 const allowSiteButton = document.querySelector("#allow-site");
 const allowedSitesList = document.querySelector("#allowed-sites");
 const bestAudioPresetID = "3A4B5C6D-7E8F-4091-A120-AAAAAAAAAAAA";
+const bestVideoPresetID = "A1B2C3D4-E5F6-47A8-9B10-111111111111";
 let preferredStream = null;
 let currentMusic = null;
 let currentSite = null;
@@ -165,15 +166,16 @@ async function sendBestAudio(tab) {
 
 async function sendYouTubeVideo(tab) {
   const url = PullrStreamCapture.singleYouTubeVideoURL(tab.url);
+  const message = { action: "add", url, presetID: bestVideoPresetID, start: true };
   try {
-    const response = await chrome.runtime.sendNativeMessage("app.pullr.native", { action: "add", url });
+    const response = await chrome.runtime.sendNativeMessage("app.pullr.native", message);
     if (response?.ok) {
-      setStatus("Video added to Pullr.");
+      setStatus("H.265 video download started in Pullr.");
       return;
     }
   } catch {}
 
-  const params = new URLSearchParams({ url });
+  const params = new URLSearchParams({ url, presetID: bestVideoPresetID, start: "1" });
   await chrome.tabs.create({ url: `pullr://add?${params}`, active: false });
   setStatus("Sent to Pullr. Your browser may ask for permission.");
 }
@@ -244,16 +246,25 @@ async function refresh() {
     return;
   }
 
-  const response = await chrome.runtime.sendMessage({ action: "streamsForTab", tabId: tab.id });
-  renderStreams(response?.streams || [], tab);
-  if (isYouTubeURL(tab.url)) {
+  const youtubeVideo = PullrStreamCapture.isYouTubeVideoURL(tab.url);
+  music.hidden = !youtubeVideo;
+  if (youtubeVideo) {
+    // YouTube's signed media fragments are not standalone downloads.
+    renderStreams([], tab);
     const musicResponse = await chrome.runtime.sendMessage({ action: "musicForTab", tabId: tab.id });
     currentMusic = musicResponse?.music || null;
     music.hidden = false;
     songTitle.textContent = currentMusic?.artist
       ? `${currentMusic.title} — ${currentMusic.artist}`
       : (currentMusic?.title || tab.title || "Current YouTube track");
+    sendPageButton.disabled = false;
+    sendPageButton.textContent = "Download YouTube video · H.265";
+    document.querySelector("#capture-help").textContent = "Downloads this video as an H.265 MP4 in Pullr.";
+    setStatus("Ready to download. Playback is not required.");
+    return;
   }
+  const response = await chrome.runtime.sendMessage({ action: "streamsForTab", tabId: tab.id });
+  renderStreams(response?.streams || [], tab);
   sendPageButton.disabled = !preferredStream;
   sendPageButton.textContent = preferredStream ? "Send detected video to Pullr" : "No stream detected — play the video first";
   setStatus(preferredStream ? "Ready to send. Downloads open in Pullr." : "Play the video, then reopen this extension.");
@@ -263,6 +274,10 @@ sendPageButton.addEventListener("click", async () => {
   const tab = await activeTab();
   if (!tab?.url || !isWebURL(tab.url)) {
     setStatus("Open a normal web page first.");
+    return;
+  }
+  if (PullrStreamCapture.isYouTubeVideoURL(tab.url)) {
+    await sendYouTubeVideo(tab);
     return;
   }
   if (!preferredStream) {

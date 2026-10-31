@@ -12,6 +12,7 @@ final class DownloadQueueManager {
         itemID: UUID,
         ytDLPPath: String,
         arguments: [String],
+        hevcFFmpegPath: String? = nil,
         eventHandler: @escaping (YTDLPEvent) -> Void,
         completion: @escaping (Result<YTDLPResult, Error>) -> Void
     ) {
@@ -21,9 +22,19 @@ final class DownloadQueueManager {
         service.start(
             ytDLPPath: ytDLPPath,
             arguments: arguments,
-            eventHandler: eventHandler,
+            hevcFFmpegPath: hevcFFmpegPath,
+            eventHandler: { [weak self] event in
+                guard self?.lock.withLock({ self?.services[itemID] === service }) == true else { return }
+                eventHandler(event)
+            },
             completion: { [weak self] result in
-                self?.lock.withLock { self?.services[itemID] = nil }
+                guard let self else { return }
+                let isCurrent = self.lock.withLock {
+                    guard self.services[itemID] === service else { return false }
+                    self.services[itemID] = nil
+                    return true
+                }
+                guard isCurrent else { return }
                 completion(result)
             }
         )

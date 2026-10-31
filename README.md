@@ -74,15 +74,24 @@ The native app uses flat charcoal panels and a time dashboard with recorded tota
 
 ```sh
 ./script/run_unit_tests.sh
+./script/run_app_store_smoke.sh
 python3 native-host/test_native_host.py
 node chrome-extension/test_music_tracker.js
 node chrome-extension/test_page_capture.js
 node chrome-extension/test_stream_capture.js
+node chrome-extension/test_popup.js
 node chrome-extension/test_website_tracker.js
 node chrome-extension/test_activity_outbox.js
 node chrome-extension/test_background_activity.js
+node chrome-extension/test_background_tracking.js
 ./script/build_and_run.sh --verify
 ```
+
+For a compact local release, run `PULLR_CONFIGURATION=release ./script/build_and_run.sh --package`, then `python3 script/verify_local_build.py dist/Pullr.app`. Release builds optimize for size and include only this Mac's CPU architecture, including Sparkle's helpers. Set `PULLR_ARCHITECTURE=universal` to build for both Apple Silicon and Intel; the publication script does this automatically.
+
+YouTube video presets finish as H.265 (HEVC) MP4 files using the Mac's VideoToolbox encoder, with AAC audio and the `hvc1` tag for macOS playback. Pullr downloads the selected source quality, then converts it before marking the item complete. Audio and Original presets preserve their existing behavior. Failed or cancelled conversion keeps the source file.
+
+`./script/run_hevc_smoke.sh` checks actual encoding and failure preservation with generated fixtures. Set `PULLR_TEST_YOUTUBE_URL` to a short YouTube video to check the complete download and conversion path.
 
 Sparkle is pinned through Swift Package Manager. Release archives and appcasts are signed with a private key stored in the maintainer's macOS Keychain; the private key is never stored in this repository.
 

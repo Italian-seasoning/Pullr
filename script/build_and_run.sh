@@ -5,9 +5,14 @@ MODE="${1:-run}"
 APP_NAME="Pullr"
 BUNDLE_ID="app.pullr.Pullr"
 MIN_SYSTEM_VERSION="14.0"
-VERSION="${PULLR_VERSION:-1.1.2}"
-BUILD_NUMBER="${PULLR_BUILD_NUMBER:-5}"
+VERSION="${PULLR_VERSION:-1.1.3}"
+BUILD_NUMBER="${PULLR_BUILD_NUMBER:-6}"
 CONFIGURATION="${PULLR_CONFIGURATION:-debug}"
+ARCHITECTURE="${PULLR_ARCHITECTURE:-$(uname -m)}"
+case "$ARCHITECTURE" in
+  arm64|x86_64|universal) ;;
+  *) echo "Unsupported PULLR_ARCHITECTURE: $ARCHITECTURE" >&2; exit 2 ;;
+esac
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
@@ -25,9 +30,14 @@ if [[ "$MODE" != "--package" && "$MODE" != "package" ]]; then
   pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 fi
 
-BUILD_ARGUMENTS=(-c "$CONFIGURATION")
+BUILD_ARGUMENTS=(-c "$CONFIGURATION" --jobs 2)
 if [[ "$CONFIGURATION" == "release" ]]; then
-  BUILD_ARGUMENTS+=(--arch arm64 --arch x86_64)
+  if [[ "$ARCHITECTURE" == "universal" ]]; then
+    BUILD_ARGUMENTS+=(--arch arm64 --arch x86_64)
+  else
+    BUILD_ARGUMENTS+=(--arch "$ARCHITECTURE")
+  fi
+  BUILD_ARGUMENTS+=(-Xswiftc -Osize)
   BUILD_ARGUMENTS+=(-Xswiftc -no-serialize-debugging-options)
   BUILD_ARGUMENTS+=(-Xswiftc -debug-prefix-map -Xswiftc "$ROOT_DIR=.")
   BUILD_ARGUMENTS+=(-Xswiftc -file-prefix-map -Xswiftc "$ROOT_DIR=.")
@@ -44,6 +54,16 @@ if [[ "$CONFIGURATION" == "release" ]]; then
   strip -x "$APP_BINARY"
 fi
 ditto "$BUILD_DIR/Sparkle.framework" "$APP_FRAMEWORKS/Sparkle.framework"
+if [[ "$CONFIGURATION" == "release" && "$ARCHITECTURE" != "universal" ]]; then
+  while IFS= read -r -d '' binary; do
+    [[ "$(file -b "$binary")" == *Mach-O* ]] || continue
+    if [[ "$(lipo -archs "$binary")" != "$ARCHITECTURE" ]]; then
+      lipo "$binary" -thin "$ARCHITECTURE" -output "$binary.thin"
+      mv "$binary.thin" "$binary"
+    fi
+    strip -x "$binary"
+  done < <(find "$APP_FRAMEWORKS" -type f -print0)
+fi
 install_name_tool -add_rpath @executable_path/../Frameworks "$APP_BINARY"
 
 if [[ -f "$ROOT_DIR/Sources/Pullr/Resources/PullrDark.icns" ]]; then
@@ -102,6 +122,9 @@ cat >"$INFO_PLIST" <<PLIST
 </plist>
 PLIST
 
+for attribute in com.apple.FinderInfo com.apple.ResourceFork; do
+  xattr -dr "$attribute" "$APP_BUNDLE" 2>/dev/null || true
+done
 codesign --force --deep --sign - "$APP_FRAMEWORKS/Sparkle.framework"
 codesign --force --deep --sign - "$APP_BUNDLE"
 

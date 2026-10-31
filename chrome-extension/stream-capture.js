@@ -93,13 +93,24 @@
       if (!(host === "youtu.be" || host === "youtube.com" || host.endsWith(".youtube.com"))) return value;
       const videoID = host === "youtu.be"
         ? url.pathname.split("/").filter(Boolean)[0]
-        : (url.searchParams.get("v") || (url.pathname.startsWith("/shorts/") ? url.pathname.split("/")[2] : ""));
+        : (url.searchParams.get("v") || (/^\/(shorts|live|embed)\//.test(url.pathname) ? url.pathname.split("/")[2] : ""));
       if (!videoID) return value;
       const single = new URL("/watch", host === "youtu.be" ? "https://www.youtube.com" : url.origin);
       single.searchParams.set("v", videoID);
       return single.href;
     } catch {
       return value;
+    }
+  }
+
+  function isYouTubeVideoURL(value) {
+    try {
+      const url = new URL(singleYouTubeVideoURL(value));
+      return ["http:", "https:"].includes(url.protocol)
+        && (url.hostname === "youtube.com" || url.hostname.endsWith(".youtube.com"))
+        && url.pathname === "/watch" && Boolean(url.searchParams.get("v"));
+    } catch {
+      return false;
     }
   }
 
@@ -121,6 +132,7 @@
     safeRequestContext,
     responseSize,
     singleYouTubeVideoURL,
+    isYouTubeVideoURL,
     badgeState
   };
 })(globalThis);

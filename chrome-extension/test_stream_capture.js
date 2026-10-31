@@ -10,8 +10,16 @@ const {
   safeRequestContext,
   responseSize,
   singleYouTubeVideoURL,
+  isYouTubeVideoURL,
   badgeState
 } = globalThis.PullrStreamCapture;
+
+for (const url of ["https://youtu.be/abc", "https://www.youtube.com/watch?v=abc", "https://music.youtube.com/watch?v=abc", "https://youtube.com/shorts/abc", "https://youtube.com/live/abc", "https://youtube.com/embed/abc"]) {
+  assert.equal(isYouTubeVideoURL(url), true, url);
+}
+for (const url of ["https://youtube.com/", "https://youtube.com/playlist?list=PL123", "https://youtube.com/results?search_query=abc", "https://youtube.com.evil.example/watch?v=abc", "file://youtube.com/watch?v=abc"]) {
+  assert.equal(isYouTubeVideoURL(url), false, url);
+}
 
 assert.equal(
   singleYouTubeVideoURL("https://www.youtube.com/watch?v=pu22yjU49Rw&list=RDR9ag38BwOP8&index=3"),

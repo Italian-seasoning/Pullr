@@ -32,9 +32,8 @@
   if (typeof document === "undefined" || typeof chrome === "undefined") return;
 
   let video = null;
-  let previousTime = 0;
-  let pendingSeconds = 0;
   let lastMetadataSignature = "";
+  const metadataRegions = "title, ytmusic-player-bar, ytd-watch-metadata, #owner, ytd-channel-name";
 
   const text = (selector) => document.querySelector(selector)?.textContent?.trim() || "";
   const metadata = () => {
@@ -61,48 +60,29 @@
 
   const reportMetadata = () => {
     const current = metadata();
-    const signature = `${current.videoID}|${current.title}|${current.artist}`;
+    const signature = `${current.videoID}|${current.title}|${current.artist}|${current.duration}`;
     if (!current.title || signature === lastMetadataSignature) return current;
     lastMetadataSignature = signature;
     void chrome.runtime.sendMessage({ action: "currentMusic", ...current }).catch(() => {});
     return current;
   };
 
-  const flush = () => {
-    if (pendingSeconds < 5) return;
-    const current = reportMetadata();
-    const seconds = Math.min(pendingSeconds, 60);
-    pendingSeconds -= seconds;
-    void chrome.runtime.sendMessage({ action: "trackListening", ...current, seconds }).catch(() => {});
-  };
-
-  const onTimeUpdate = () => {
-    const currentTime = video?.currentTime || 0;
-    if (video && !video.paused) pendingSeconds += listenedDelta(previousTime, currentTime);
-    previousTime = currentTime;
-    reportMetadata();
-    if (pendingSeconds >= 30) flush();
-  };
-
   const bindVideo = () => {
     const next = document.querySelector("video");
     if (!next || next === video) return;
-    flush();
-    video?.removeEventListener("timeupdate", onTimeUpdate);
-    video?.removeEventListener("pause", flush);
-    video?.removeEventListener("ended", flush);
+    for (const event of ["loadedmetadata", "durationchange", "play"]) video?.removeEventListener(event, reportMetadata);
     video = next;
-    previousTime = video.currentTime || 0;
-    video.addEventListener("timeupdate", onTimeUpdate);
-    video.addEventListener("pause", flush);
-    video.addEventListener("ended", flush);
+    for (const event of ["loadedmetadata", "durationchange", "play"]) video.addEventListener(event, reportMetadata);
     lastMetadataSignature = "";
     reportMetadata();
   };
 
   bindVideo();
-  new MutationObserver(bindVideo).observe(document.documentElement, { childList: true, subtree: true });
-  setInterval(bindVideo, 2_000);
-  addEventListener("pagehide", flush);
-  document.addEventListener("visibilitychange", () => { if (document.hidden) flush(); });
+  new MutationObserver((records) => {
+    if (!video?.isConnected) bindVideo();
+    if (records.some(record => {
+      const target = record.target.nodeType === 3 ? record.target.parentElement : record.target;
+      return target?.closest?.(metadataRegions) || Array.from(record.addedNodes || []).some(node => node.matches?.(metadataRegions));
+    })) reportMetadata();
+  }).observe(document.documentElement, { childList: true, characterData: true, subtree: true });
 })();

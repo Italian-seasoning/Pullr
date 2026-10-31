@@ -31,25 +31,26 @@ globalThis.fetch = async (url) => ({
 require("./page-capture.js");
 
 const playbackMessages = () => messages.filter((message) => message.source === "pullr-playback");
-assert.deepEqual(playbackMessages(), [{ source: "pullr-playback", playing: false }]);
-video.paused = false;
-documentListeners.playing({ type: "playing", target: video });
-assert.equal(playbackMessages().at(-1).playing, true);
-documentListeners.waiting({ type: "waiting", target: video });
-assert.equal(playbackMessages().at(-1).playing, false);
-documentListeners.playing({ type: "playing", target: video });
-documentListeners.seeking({ type: "seeking", target: video });
-assert.equal(playbackMessages().at(-1).playing, false);
-documentListeners.seeked({ type: "seeked", target: video });
-assert.equal(playbackMessages().at(-1).playing, true);
-video.paused = true;
-documentListeners.pause({ type: "pause", target: video });
-assert.equal(playbackMessages().at(-1).playing, false);
-video.paused = false;
-documentListeners.playing({ type: "playing", target: video });
-video.ended = true;
-documentListeners.ended({ type: "ended", target: video });
-assert.equal(playbackMessages().at(-1).playing, false);
+assert.deepEqual(playbackMessages(), [], "Stream capture must not publish retired playback notifications at startup");
+for (const type of ["playing", "waiting", "seeking", "seeked", "pause", "ended"]) {
+  documentListeners[type]?.({ type, target: video });
+}
+assert.deepEqual(playbackMessages(), [], "Media events must not publish retired playback notifications");
+
+let bridgeMessage;
+const forwarded = [];
+globalThis.addEventListener = (name, listener) => { if (name === "message") bridgeMessage = listener; };
+globalThis.chrome = { runtime: { sendMessage: message => { forwarded.push(message); return Promise.resolve(); } } };
+require("./content-bridge.js");
+bridgeMessage({ source: window, data: { source: "pullr-playback", playing: true } });
+assert.deepEqual(forwarded, [], "Old page playback messages must not wake the background worker");
+bridgeMessage({ source: {}, data: { source: "pullr-page-capture", url: video.src } });
+bridgeMessage({ source: window, data: { source: "pullr-page-capture", url: "file:///private/stream.mp4" } });
+assert.deepEqual(forwarded, [], "The stream bridge must retain source and protocol validation");
+bridgeMessage({ source: window, data: { source: "pullr-page-capture", url: video.src } });
+assert.equal(forwarded.length, 1);
+assert.equal(forwarded[0].action, "recordPageStream");
+assert.equal(forwarded[0].url, video.src, "Valid captured streams must still reach the background worker");
 
 (async () => {
   await globalThis.fetch("https://cdn.example.com/api/manifest?id=1");
