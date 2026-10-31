@@ -12,6 +12,12 @@
     }
     if (title.includes(" - ")) {
       const [artist, ...song] = title.split(" - ");
+      if (fallbackArtist && artist.trim().toLocaleLowerCase() !== fallbackArtist.trim().toLocaleLowerCase()) {
+        return { title, artist: fallbackArtist };
+      }
+      if (!fallbackArtist && /^(?:super |ultra |hyper )?(?:slowed|sped up)\b/i.test(song.join(" - ").trim())) {
+        return { title, artist: "" };
+      }
       return { title: song.join(" - ").trim(), artist: artist.trim() || fallbackArtist };
     }
     return { title, artist: fallbackArtist };

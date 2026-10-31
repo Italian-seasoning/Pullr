@@ -104,6 +104,34 @@ match = best_music_match("Artist - The Song (Official Video)", "", [
 ])
 assert match["trackViewUrl"] == "https://music.apple.com/right"
 
+punctuation_candidates = [
+    {"trackName": "Song", "artistName": "Artist", "trackViewUrl": "https://music.apple.com/plain"},
+    {"trackName": "Song!", "artistName": "Artist", "trackViewUrl": "https://music.apple.com/exclamation"},
+]
+assert best_music_match("Song!", "Artist", punctuation_candidates)["trackViewUrl"].endswith("/exclamation")
+assert best_music_match("Song!", "Artist", punctuation_candidates[:1]) is None
+assert best_music_match("ASTRAL! - SUPER SLOWED", "xxephyrr", [
+    {"trackName": "ASTRAL - SUPER SLOWED", "artistName": "xxephyrr", "trackViewUrl": "https://music.apple.com/wrong"},
+    {"trackName": "ASTRAL! - SLOWED", "artistName": "xxephyrr", "trackViewUrl": "https://music.apple.com/slowed"},
+]) is None
+assert best_music_match("ASTRAL! - SUPER SLOWED", "xxephyrr", [
+    {"trackName": "ASTRAL! - SUPER SLOWED", "artistName": "xxephyrr", "trackViewUrl": "https://music.apple.com/right"},
+])["trackViewUrl"].endswith("/right")
+assert best_music_match("曲!", "歌手", [
+    {"trackName": "曲!", "artistName": "別人", "trackViewUrl": "https://music.apple.com/wrong"},
+]) is None
+assert best_music_match("Song", "", [
+    {"trackName": "Song", "artistName": "Artist One", "trackViewUrl": "https://music.apple.com/one"},
+    {"trackName": "Song", "artistName": "Artist Two", "trackViewUrl": "https://music.apple.com/two"},
+]) is None
+assert best_music_match("Song", "Artist", [
+    {"trackName": "Song", "artistName": "Artista", "trackViewUrl": "https://music.apple.com/one"},
+    {"trackName": "Song", "artistName": "Artistb", "trackViewUrl": "https://music.apple.com/two"},
+]) is None
+assert best_music_match("Don’t Stop", "Artist", [
+    {"trackName": "Don't Stop", "artistName": "Artist", "trackViewUrl": "https://music.apple.com/right"},
+])["trackViewUrl"].endswith("/right")
+
 search_terms = []
 
 
