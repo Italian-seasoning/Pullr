@@ -5,6 +5,8 @@ import tempfile
 import io
 import json
 import struct
+import subprocess
+import sys
 from types import SimpleNamespace
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
@@ -21,6 +23,17 @@ from pullr_native_host import (
 
 
 with tempfile.TemporaryDirectory() as directory:
+    tracking_import_check = subprocess.run([sys.executable, "-c", """
+import sys
+class MusicOnlyImports:
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname in {'difflib', 'subprocess', 'urllib.request'}:
+            raise AssertionError('Website tracking loaded music or app-launch code: ' + fullname)
+sys.meta_path.insert(0, MusicOnlyImports())
+from pullr_native_host import save_website_event
+assert save_website_event({'url':'https://example.com/', 'seconds':5}, directory=sys.argv[1])
+""", directory], cwd=Path(__file__).parent, capture_output=True, text=True)
+    assert tracking_import_check.returncode == 0, tracking_import_check.stderr
     jpeg = base64.b64encode(b"\xff\xd8\xff\xd9").decode("ascii")
     link = build_deep_link(
         {
@@ -103,6 +116,34 @@ match = best_music_match("Artist - The Song (Official Video)", "", [
     {"trackName": "The Song", "artistName": "Artist", "trackViewUrl": "https://music.apple.com/right"},
 ])
 assert match["trackViewUrl"] == "https://music.apple.com/right"
+
+punctuation_candidates = [
+    {"trackName": "Song", "artistName": "Artist", "trackViewUrl": "https://music.apple.com/plain"},
+    {"trackName": "Song!", "artistName": "Artist", "trackViewUrl": "https://music.apple.com/exclamation"},
+]
+assert best_music_match("Song!", "Artist", punctuation_candidates)["trackViewUrl"].endswith("/exclamation")
+assert best_music_match("Song!", "Artist", punctuation_candidates[:1]) is None
+assert best_music_match("ASTRAL! - SUPER SLOWED", "xxephyrr", [
+    {"trackName": "ASTRAL - SUPER SLOWED", "artistName": "xxephyrr", "trackViewUrl": "https://music.apple.com/wrong"},
+    {"trackName": "ASTRAL! - SLOWED", "artistName": "xxephyrr", "trackViewUrl": "https://music.apple.com/slowed"},
+]) is None
+assert best_music_match("ASTRAL! - SUPER SLOWED", "xxephyrr", [
+    {"trackName": "ASTRAL! - SUPER SLOWED", "artistName": "xxephyrr", "trackViewUrl": "https://music.apple.com/right"},
+])["trackViewUrl"].endswith("/right")
+assert best_music_match("曲!", "歌手", [
+    {"trackName": "曲!", "artistName": "別人", "trackViewUrl": "https://music.apple.com/wrong"},
+]) is None
+assert best_music_match("Song", "", [
+    {"trackName": "Song", "artistName": "Artist One", "trackViewUrl": "https://music.apple.com/one"},
+    {"trackName": "Song", "artistName": "Artist Two", "trackViewUrl": "https://music.apple.com/two"},
+]) is None
+assert best_music_match("Song", "Artist", [
+    {"trackName": "Song", "artistName": "Artista", "trackViewUrl": "https://music.apple.com/one"},
+    {"trackName": "Song", "artistName": "Artistb", "trackViewUrl": "https://music.apple.com/two"},
+]) is None
+assert best_music_match("Don’t Stop", "Artist", [
+    {"trackName": "Don't Stop", "artistName": "Artist", "trackViewUrl": "https://music.apple.com/right"},
+])["trackViewUrl"].endswith("/right")
 
 search_terms = []
 

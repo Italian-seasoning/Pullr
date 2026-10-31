@@ -2,19 +2,16 @@
 import base64
 import binascii
 import fcntl
-from difflib import SequenceMatcher
 import json
 import os
 from pathlib import Path
 import re
 import struct
-import subprocess
 import sys
 import time
 import uuid
 from datetime import datetime, timezone
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
-from urllib.request import urlopen
 
 
 def read_message():
@@ -248,9 +245,9 @@ def save_website_event(message, directory=None, now=None):
 
 
 def _normalized_music_text(value):
-    value = _safe_text(value, 240).lower()
+    value = _safe_text(value, 240).casefold()
     value = re.sub(r"[\[(](official (music )?video|official audio|lyrics?|lyric video|hd|4k)[^\])]*[\])]", " ", value)
-    return " ".join(re.findall(r"[a-z0-9]+", value))
+    return " ".join(re.findall(r"[^\W_]+", value))
 
 
 def split_music_title(title, artist=""):
@@ -258,7 +255,10 @@ def split_music_title(title, artist=""):
     clean_artist = _safe_text(artist, 160).removesuffix(" - Topic").strip()
     if " - " in clean_title:
         possible_artist, possible_title = clean_title.split(" - ", 1)
-        if possible_artist and possible_title:
+        variant = re.match(r"^(?:super |ultra |hyper )?(?:slowed|sped up)\b", possible_title, flags=re.I)
+        if possible_artist and possible_title and (
+            clean_artist.casefold() == possible_artist.strip().casefold() if clean_artist else not variant
+        ):
             clean_title = possible_title
             if not clean_artist:
                 clean_artist = possible_artist
@@ -266,22 +266,37 @@ def split_music_title(title, artist=""):
 
 
 def best_music_match(title, artist, results):
+    from difflib import SequenceMatcher
+    import unicodedata
+
     title, artist = split_music_title(title, artist)
-    wanted_title = _normalized_music_text(title)
+    def comparable_title(value):
+        value = _safe_text(value, 240)
+        value = re.sub(r"[\[(](official (music )?video|official audio|lyrics?|lyric video|hd|4k)[^\])]*[\])]", " ", value, flags=re.I)
+        value = unicodedata.normalize("NFKC", value).casefold()
+        value = value.translate(str.maketrans({"’": "'", "‘": "'", "–": "-", "—": "-"}))
+        return " ".join(value.split())
+
+    wanted_title = comparable_title(title)
     wanted_artist = _normalized_music_text(artist)
     if not wanted_title:
         return None
 
     def score(candidate):
-        title_score = SequenceMatcher(None, wanted_title, _normalized_music_text(candidate.get("trackName", ""))).ratio()
         if not wanted_artist:
-            return title_score
-        artist_score = SequenceMatcher(None, wanted_artist, _normalized_music_text(candidate.get("artistName", ""))).ratio()
-        return title_score * 0.75 + artist_score * 0.25
+            return 1.0
+        credits = re.split(r"\s*(?:,|&|\bfeat\.?\b|\bft\.?\b)\s*", candidate.get("artistName", ""), flags=re.I)
+        return max((SequenceMatcher(None, wanted_artist, _normalized_music_text(credit)).ratio() for credit in credits), default=0)
 
-    candidates = [item for item in results if isinstance(item, dict) and item.get("trackViewUrl")]
+    candidates = [item for item in results if isinstance(item, dict) and item.get("trackViewUrl")
+                  and comparable_title(item.get("trackName", "")) == wanted_title]
     match = max(candidates, key=score, default=None)
-    return match if match and score(match) >= 0.58 else None
+    if not match or score(match) < 0.8:
+        return None
+    if any(_normalized_music_text(item.get("artistName", "")) != _normalized_music_text(match.get("artistName", ""))
+           and score(item) >= score(match) - 0.05 for item in candidates):
+        return None
+    return match
 
 
 def find_apple_music(message, fetcher=None):
@@ -292,6 +307,7 @@ def find_apple_music(message, fetcher=None):
     if artist:
         terms.append(title)
 
+    results = []
     for term in terms:
         endpoint = "https://itunes.apple.com/search?" + urlencode({
             "term": term,
@@ -301,14 +317,14 @@ def find_apple_music(message, fetcher=None):
             "limit": 20,
         })
         if fetcher is None:
+            from urllib.request import urlopen
+
             with urlopen(endpoint, timeout=8) as response:
                 payload = json.load(response)
         else:
             payload = fetcher(endpoint)
-        match = best_music_match(title, artist, payload.get("results", []))
-        if match:
-            return match
-    return None
+        results.extend(payload.get("results", []))
+    return best_music_match(title, artist, results)
 
 
 def main():
@@ -330,6 +346,8 @@ def main():
         write_diagnostic("trackWebsite", "success" if event else "invalid")
         write_message({"ok": bool(event)})
         return
+
+    import subprocess
 
     if action == "findAppleMusic":
         try:

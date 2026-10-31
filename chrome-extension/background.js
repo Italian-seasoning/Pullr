@@ -2,48 +2,74 @@ importScripts("stream-capture.js", "website-tracker.js", "activity-outbox.js");
 
 const keyForTab = (tabId) => `streams:${tabId}`;
 const musicKeyForTab = (tabId) => `music:${tabId}`;
-const playbackKeyForTab = (tabId) => `playback:${tabId}`;
 const responseHeaderValue = (headers, name) => (headers || []).find((header) => header.name?.toLowerCase() === name)?.value || "";
 const requestContextByID = new Map();
 const activityKey = "websiteActivity";
 const trackingSettingKey = "hoursTrackingEnabled";
 const allowedSitesKey = "allowedSites";
 let activityRefresh = Promise.resolve();
+let activitySettings = null;
+let activityAlarmScheduled = false;
+let pendingActivity = false;
 
-async function refreshWebsiteActivity() {
+async function setActivityAlarm(needed) {
+  if (needed && !activityAlarmScheduled) {
+    await chrome.alarms.create(activityKey, { periodInMinutes: 0.5 });
+    activityAlarmScheduled = true;
+  } else if (!needed && activityAlarmScheduled) {
+    await chrome.alarms.clear(activityKey);
+    activityAlarmScheduled = false;
+  }
+}
+
+async function syncActivity(segment = null) {
+  const canRecord = await PullrActivityOutbox.sync(
+    chrome.storage.local,
+    message => chrome.runtime.sendNativeMessage("app.pullr.native", message),
+    segment
+  );
+  const saved = await chrome.storage.local.get("activityOutbox");
+  pendingActivity = Boolean(saved.activityOutbox?.length);
+  return canRecord;
+}
+
+async function refreshWebsiteActivity(checkpoint = false) {
+  if (!PullrWebsiteTracker.isTrackingEnabled(activitySettings)) {
+    if (checkpoint && pendingActivity) await syncActivity();
+    await setActivityAlarm(pendingActivity);
+    return;
+  }
   const now = Date.now();
-  const [settings, stored, idleState, window] = await Promise.all([
-    chrome.storage.local.get([trackingSettingKey, allowedSitesKey]),
+  const [stored, idleState, window] = await Promise.all([
     chrome.storage.session.get(activityKey),
     chrome.idle.queryState(60),
     chrome.windows.getLastFocused({ populate: false }).catch(() => null)
   ]);
-  if (!PullrWebsiteTracker.isTrackingEnabled(settings)) {
-    await chrome.storage.session.remove(activityKey);
-    await PullrActivityOutbox.sync(
-      chrome.storage.local,
-      message => chrome.runtime.sendNativeMessage("app.pullr.native", message)
-    );
-    const pending = await chrome.storage.local.get("activityOutbox");
-    if (!pending.activityOutbox?.length) await chrome.alarms.clear(activityKey);
-    return;
-  }
   const previous = stored[activityKey];
   let next = null;
 
   if (idleState === "active" && window?.focused) {
     const [tab] = await chrome.tabs.query({ active: true, windowId: window.id });
     const activity = PullrWebsiteTracker.activityForTab(tab);
-    if (activity && PullrWebsiteTracker.isAllowed(activity.site, settings[allowedSitesKey])) {
+    if (activity && PullrWebsiteTracker.isAllowed(activity.site, activitySettings[allowedSitesKey])) {
       next = { ...activity, startedAt: now };
     }
   }
 
+  if (!previous && !next) {
+    if (pendingActivity) await syncActivity();
+    await setActivityAlarm(pendingActivity);
+    return;
+  }
+  const unchanged = previous && next && previous.site === next.site && previous.url === next.url && previous.title === next.title;
+  if (unchanged && !checkpoint) {
+    await setActivityAlarm(true);
+    return;
+  }
+
   const segment = PullrWebsiteTracker.completedSegment(previous, now);
-  const canRecord = await PullrActivityOutbox.sync(
-    chrome.storage.local,
-    message => chrome.runtime.sendNativeMessage("app.pullr.native", message),
-    segment && PullrWebsiteTracker.isAllowed(segment.site, settings[allowedSitesKey]) ? {
+  const canRecord = await syncActivity(
+    segment && PullrWebsiteTracker.isAllowed(segment.site, activitySettings[allowedSitesKey]) ? {
       action: "trackWebsite",
       id: crypto.randomUUID(),
       recordedAt: now / 1000,
@@ -55,29 +81,37 @@ async function refreshWebsiteActivity() {
 
   if (next && canRecord) await chrome.storage.session.set({ [activityKey]: next });
   else await chrome.storage.session.remove(activityKey);
+  await setActivityAlarm(Boolean(next) || pendingActivity);
 }
 
-function queueWebsiteActivityRefresh() {
-  activityRefresh = activityRefresh.then(refreshWebsiteActivity, refreshWebsiteActivity);
+function queueWebsiteActivityRefresh(checkpoint = false) {
+  if (activitySettings && !PullrWebsiteTracker.isTrackingEnabled(activitySettings) && !checkpoint) return;
+  const refresh = () => refreshWebsiteActivity(checkpoint === true);
+  activityRefresh = activityRefresh.then(refresh, refresh);
 }
 
-async function configureWebsiteActivity() {
-  const settings = await chrome.storage.local.get([trackingSettingKey, "activityOutbox"]);
-  // Keep retrying captured records even after fresh recording is disabled.
-  if (PullrWebsiteTracker.isTrackingEnabled(settings) || settings.activityOutbox?.length) {
-    await chrome.alarms.create(activityKey, { periodInMinutes: 0.5 });
-    await refreshWebsiteActivity();
-  } else {
-    await chrome.alarms.clear(activityKey);
-    await chrome.storage.session.remove(activityKey);
-  }
+function configureWebsiteActivity() {
+  const configure = async () => {
+    const settings = await chrome.storage.local.get([trackingSettingKey, allowedSitesKey, "activityOutbox"]);
+    try {
+      if (PullrWebsiteTracker.isTrackingEnabled(activitySettings)) {
+        await refreshWebsiteActivity(true);
+      }
+    } finally {
+      activitySettings = settings;
+      pendingActivity = Boolean((await chrome.storage.local.get("activityOutbox")).activityOutbox?.length);
+      await chrome.alarms.clear(activityKey);
+      activityAlarmScheduled = false;
+      if (!PullrWebsiteTracker.isTrackingEnabled(settings)) await chrome.storage.session.remove(activityKey);
+    }
+    if (PullrWebsiteTracker.isTrackingEnabled(activitySettings)) await refreshWebsiteActivity();
+    else await setActivityAlarm(pendingActivity);
+  };
+  activityRefresh = activityRefresh.then(configure, configure);
+  return activityRefresh;
 }
 
-function queueWebsiteActivityConfiguration() {
-  activityRefresh = activityRefresh.then(configureWebsiteActivity, configureWebsiteActivity);
-}
-
-queueWebsiteActivityConfiguration();
+void configureWebsiteActivity();
 
 async function streamsForTab(tabId) {
   const key = keyForTab(tabId);
@@ -161,16 +195,7 @@ chrome.webRequest.onBeforeRequest.addListener(
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.action === "videoPlaybackState" && Number.isInteger(sender.tab?.id)) {
-    const key = playbackKeyForTab(sender.tab.id);
-    chrome.storage.session.get(key).then(async (stored) => {
-      const frames = { ...(stored[key] || {}) };
-      if (message.playing === true) frames[String(sender.frameId ?? 0)] = true;
-      else delete frames[String(sender.frameId ?? 0)];
-      if (Object.keys(frames).length) await chrome.storage.session.set({ [key]: frames });
-      else await chrome.storage.session.remove(key);
-      queueWebsiteActivityRefresh();
-      sendResponse({ ok: true });
-    });
+    sendResponse({ ok: true });
     return true;
   }
 
@@ -224,7 +249,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
-  void chrome.storage.session.remove([keyForTab(tabId), musicKeyForTab(tabId), playbackKeyForTab(tabId)]);
+  void chrome.storage.session.remove([keyForTab(tabId), musicKeyForTab(tabId)]);
   queueWebsiteActivityRefresh();
 });
 
@@ -232,8 +257,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (changeInfo.url) {
     void Promise.all([
       chrome.storage.session.remove(keyForTab(tabId)),
-      chrome.storage.session.remove(musicKeyForTab(tabId)),
-      chrome.storage.session.remove(playbackKeyForTab(tabId))
+      chrome.storage.session.remove(musicKeyForTab(tabId))
     ]).then(() => updateBadge(tabId));
   }
   if (changeInfo.url || changeInfo.status === "complete") queueWebsiteActivityRefresh();
@@ -243,9 +267,8 @@ chrome.tabs.onActivated.addListener(queueWebsiteActivityRefresh);
 chrome.windows.onFocusChanged.addListener(queueWebsiteActivityRefresh);
 chrome.idle.onStateChanged.addListener(queueWebsiteActivityRefresh);
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === activityKey) queueWebsiteActivityRefresh();
+  if (alarm.name === activityKey) queueWebsiteActivityRefresh(true);
 });
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName === "local" && changes[trackingSettingKey]) queueWebsiteActivityConfiguration();
-  else if (areaName === "local" && changes[allowedSitesKey]) queueWebsiteActivityRefresh();
+  if (areaName === "local" && (changes[trackingSettingKey] || changes[allowedSitesKey])) void configureWebsiteActivity();
 });

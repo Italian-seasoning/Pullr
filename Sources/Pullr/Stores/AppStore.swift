@@ -14,6 +14,7 @@ final class AppStore: ObservableObject {
     @Published var websiteActivity: [WebsiteActivityEvent] = []
     @Published var dependencyReport: DependencyReport
     @Published var toast: ToastMessage?
+    @Published var queueStorageError: String?
     @Published var isQueueRunning = false
     @Published var activeItemIDs: Set<UUID> = []
     @Published var isUpdatingYTDLP = false
@@ -40,6 +41,7 @@ final class AppStore: ObservableObject {
     private let logger = Logger(subsystem: "app.pullr.Pullr", category: "Downloads")
     private var metadataFetchIDs: Set<UUID> = []
     private var transient403RetryItemIDs: Set<UUID> = []
+    private var downloadAttemptIDs: [UUID: UUID] = [:]
     private var lastClipboardChangeCount = -1
 
     init(
@@ -66,7 +68,14 @@ final class AppStore: ObservableObject {
         self.history = historyStore.load()
         self.listeningHistory = listeningHistoryStore.load()
         self.websiteActivity = websiteActivityStore.load()
-        let loadedItems = queueStore.load()
+        let loadedItems: [DownloadItem]
+        var queueError: String?
+        do {
+            loadedItems = try queueStore.load()
+        } catch {
+            loadedItems = []
+            queueError = error.localizedDescription
+        }
         let normalizedItems = loadedItems.map { item in
             guard item.selectedPresetID == ExportPreset.Defaults.bestYouTubeAudio else { return item }
             var normalized = item
@@ -76,10 +85,12 @@ final class AppStore: ObservableObject {
         }
         self.items = normalizedItems
         if zip(loadedItems, normalizedItems).contains(where: { $0.url != $1.url || $0.isPlaylist != $1.isPlaylist }) {
-            queueStore.save(normalizedItems)
+            do { try queueStore.save(normalizedItems) }
+            catch { queueError = "Queue changes are only in memory and may be lost when Pullr quits.\n\(error.localizedDescription)" }
         }
         self.seasonPlan = seasonStore.load()
         self.dependencyReport = DependencyChecker.check(settings: loadedSettings)
+        self.queueStorageError = queueError
 
         Task { @MainActor in
             prefetchMissingMetadata()
@@ -203,14 +214,6 @@ final class AppStore: ObservableObject {
             return
         }
         addURLs(from: string, source: "clipboard")
-    }
-
-    func monitorClipboard() async {
-        checkClipboardForSuggestion()
-        while !Task.isCancelled {
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
-            checkClipboardForSuggestion()
-        }
     }
 
     func acceptClipboardSuggestion() {
@@ -355,7 +358,7 @@ final class AppStore: ObservableObject {
         persistSeason()
     }
 
-    private func checkClipboardForSuggestion() {
+    func checkClipboardForSuggestion() {
         let changeCount = clipboardReader.changeCount
         guard changeCount != lastClipboardChangeCount else { return }
         lastClipboardChangeCount = changeCount
@@ -493,6 +496,7 @@ final class AppStore: ObservableObject {
     func stopQueue() {
         isQueueRunning = false
         let activeIDs = activeItemIDs
+        downloadAttemptIDs.removeAll()
         queueManager.cancelAllDownloads()
         for itemID in activeIDs {
             if let index = items.firstIndex(where: { $0.id == itemID }) {
@@ -510,6 +514,7 @@ final class AppStore: ObservableObject {
     }
 
     func cancel(_ item: DownloadItem) {
+        downloadAttemptIDs[item.id] = nil
         if activeItemIDs.contains(item.id) {
             queueManager.cancelDownload(itemID: item.id)
             activeItemIDs.remove(item.id)
@@ -842,7 +847,12 @@ final class AppStore: ObservableObject {
     }
 
     private func persistQueue() {
-        queueStore.save(items)
+        do {
+            try queueStore.save(items)
+        } catch {
+            queueStorageError = "Queue changes are only in memory and may be lost when Pullr quits.\n\(error.localizedDescription)"
+            logger.error("Could not save queue: \(error.localizedDescription, privacy: .private)")
+        }
     }
 
     private func appendLog(_ line: String, to itemID: UUID) {
@@ -968,7 +978,7 @@ final class AppStore: ObservableObject {
     }
 
     private func prefetchMissingMetadata() {
-        for item in items where item.title == nil || item.thumbnailURL == nil || item.uploader == nil {
+        for item in items where !item.status.isTerminal && (item.title == nil || item.thumbnailURL == nil || item.uploader == nil) {
             prefetchMetadata(for: item.id)
         }
     }
@@ -1052,24 +1062,34 @@ final class AppStore: ObservableObject {
 
         do {
             let arguments = try CommandBuilder.buildArguments(for: request)
+            let needsHEVC = CommandBuilder.requiresHEVC(for: request)
+            if needsHEVC && request.ffmpegPath == nil {
+                throw YTDLPServiceError.missingFFmpeg
+            }
             items[index].status = .fetchingInfo
             items[index].errorMessage = nil
             appendLog("Starting download with preset: \(preset.name).", to: item.id)
             logger.info("Download started id=\(item.id.uuidString, privacy: .public)")
             persistQueue()
 
+            let attemptID = UUID()
+            downloadAttemptIDs[item.id] = attemptID
             queueManager.startDownload(
                 itemID: item.id,
                 ytDLPPath: ytDLPPath,
                 arguments: arguments,
+                hevcFFmpegPath: needsHEVC ? request.ffmpegPath : nil,
                 eventHandler: { [weak self] event in
                     Task { @MainActor in
-                        self?.handle(event, for: item.id)
+                        guard let self, self.downloadAttemptIDs[item.id] == attemptID else { return }
+                        self.handle(event, for: item.id)
                     }
                 },
                 completion: { [weak self] result in
                     Task { @MainActor in
-                        self?.handleCompletion(result, for: item.id, preset: preset, ytDLPPath: ytDLPPath)
+                        guard let self, self.downloadAttemptIDs[item.id] == attemptID else { return }
+                        self.downloadAttemptIDs[item.id] = nil
+                        self.handleCompletion(result, for: item.id, preset: preset, ytDLPPath: ytDLPPath)
                     }
                 }
             )
@@ -1095,14 +1115,16 @@ final class AppStore: ObservableObject {
         switch event {
         case .log(let line):
             appendLog(line, to: itemID)
+            return
         case .progress(let snapshot):
             items[index].progress = snapshot.progress
             items[index].speed = snapshot.speed
             items[index].eta = snapshot.eta
+            return
         case .status(let status):
-            if !items[index].status.isTerminal && items[index].status != .paused {
-                items[index].status = status
-            }
+            guard !items[index].status.isTerminal, items[index].status != .paused,
+                  items[index].status != status else { return }
+            items[index].status = status
         case .outputPath(let path):
             items[index].outputPath = path
         case .error(let message):

@@ -2,12 +2,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${1:-1.1.2}"
+VERSION="${1:-1.1.3}"
 REPOSITORY="${GITHUB_REPOSITORY:-Italian-seasoning/Pullr}"
 TAG="v$VERSION"
 RELEASE_DIR="$ROOT/dist/github-release/$TAG"
 ARCHIVE_NAME="Pullr-$VERSION-macOS.zip"
 DMG_NAME="Pullr-$VERSION-macOS.dmg"
+BROWSER_NAME="Pullr-$VERSION-Browser-Extension.zip"
 SPARKLE_BIN="${SPARKLE_BIN_OVERRIDE:-$ROOT/.build/artifacts/sparkle/Sparkle/bin}"
 REUSE_APP="${PULLR_REUSE_APP:-0}"
 if [[ "$REUSE_APP" == "1" ]]; then
@@ -27,7 +28,7 @@ if [[ "$REUSE_APP" == "1" ]]; then
   plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP/Contents/Info.plist"
   plutil -replace CFBundleVersion -string "$VERSION" "$APP/Contents/Info.plist"
 else
-  PULLR_CONFIGURATION=release PULLR_VERSION="$VERSION" "$ROOT/script/build_and_run.sh" --package
+  PULLR_CONFIGURATION=release PULLR_ARCHITECTURE=universal PULLR_VERSION="$VERSION" "$ROOT/script/build_and_run.sh" --package
   APP="$ROOT/dist/Pullr.app"
 fi
 
@@ -53,13 +54,34 @@ chmod +x "$DMG_STAGE/Install Pullr.command"
 hdiutil create -quiet -volname "Pullr $VERSION" -srcfolder "$DMG_STAGE" -ov -format UDZO "$RELEASE_DIR/$DMG_NAME"
 rm -rf "$DMG_STAGE"
 
+BROWSER_STAGE="$RELEASE_DIR/Pullr-Browser-Extension"
+mkdir -p "$BROWSER_STAGE/chrome-extension" "$BROWSER_STAGE/native-host"
+for file in "$ROOT"/chrome-extension/*; do
+  [[ -f "$file" && "$(basename "$file")" != test_* ]] || continue
+  cp "$file" "$BROWSER_STAGE/chrome-extension/"
+done
+ditto "$ROOT/chrome-extension/icons" "$BROWSER_STAGE/chrome-extension/icons"
+cp "$ROOT/native-host/install.sh" "$ROOT/native-host/pullr_native_host.py" "$BROWSER_STAGE/native-host/"
+cp "$ROOT/PRIVACY.md" "$ROOT/TERMS.md" "$BROWSER_STAGE/"
+cat >"$BROWSER_STAGE/README.txt" <<'INSTRUCTIONS'
+Pullr browser extension
+
+Keep this extracted folder in a permanent location. In Chrome's Extensions page,
+enable Developer mode and load the chrome-extension folder. From a Terminal in
+this folder, run ./native-host/install.sh to connect the native helper. If updating
+an existing unpacked extension, replace its files, reload it in Chrome, and
+refresh any open YouTube tabs. See chrome-extension/README.md for details.
+INSTRUCTIONS
+ditto -c -k --norsrc --keepParent "$BROWSER_STAGE" "$RELEASE_DIR/$BROWSER_NAME"
+rm -rf "$BROWSER_STAGE"
+
 APPCAST_STAGE="$RELEASE_DIR/appcast-source"
 mkdir -p "$APPCAST_STAGE"
 ditto "$RELEASE_DIR/$DMG_NAME" "$APPCAST_STAGE/$DMG_NAME"
 cat >"$APPCAST_STAGE/Pullr-$VERSION-macOS.md" <<NOTES
-Pullr $VERSION publishes the compact interface and daily activity chart, with background tracking preserved while the app is closed.
+Pullr $VERSION improves download reliability, queue recovery, and background efficiency. YouTube videos can be saved as H.265, and Apple Music matching better distinguishes similar titles.
 
-This release advances the Sparkle build number and verifies the update archive and signing key before publication.
+To update the browser extension and native helper, download the separate Browser Extension archive and follow its README. The app updater does not replace those components.
 
 This build is ad-hoc signed and not Apple-notarized. Control-click Pullr and choose Open on first launch.
 NOTES
@@ -75,7 +97,7 @@ rm -rf "$APPCAST_STAGE"
 xmllint --noout "$RELEASE_DIR/appcast.xml"
 rg -q 'sparkle:edSignature=' "$RELEASE_DIR/appcast.xml"
 python3 "$ROOT/script/verify_update.py" "$APP" "$RELEASE_DIR/$DMG_NAME" "$RELEASE_DIR/appcast.xml" --sparkle-bin "$SPARKLE_BIN" --repository "$REPOSITORY" --require-newer
-(cd "$RELEASE_DIR" && shasum -a 256 "$ARCHIVE_NAME" "$DMG_NAME" appcast.xml > SHA256SUMS.txt)
+(cd "$RELEASE_DIR" && shasum -a 256 "$ARCHIVE_NAME" "$DMG_NAME" "$BROWSER_NAME" appcast.xml > SHA256SUMS.txt)
 
 if [[ "${PULLR_SKIP_PUBLISH:-0}" == "1" ]]; then
   echo "Package prepared at $RELEASE_DIR"
@@ -89,5 +111,6 @@ gh release create "$TAG" \
   --notes-file "$RELEASE_DIR/Pullr-$VERSION-macOS.md" \
   "$RELEASE_DIR/$ARCHIVE_NAME" \
   "$RELEASE_DIR/$DMG_NAME" \
+  "$RELEASE_DIR/$BROWSER_NAME" \
   "$RELEASE_DIR/appcast.xml" \
   "$RELEASE_DIR/SHA256SUMS.txt"

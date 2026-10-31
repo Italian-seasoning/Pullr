@@ -30,6 +30,10 @@ enum CommandBuilderError: LocalizedError, Equatable {
 }
 
 enum CommandBuilder {
+    static func requiresHEVC(for request: DownloadCommandRequest) -> Bool {
+        request.preset.kind == .video && URLExtractor.isYouTubeURL(request.url)
+    }
+
     static func buildArguments(for request: DownloadCommandRequest) throws -> [String] {
         guard !request.url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw CommandBuilderError.emptyURL
@@ -66,6 +70,11 @@ enum CommandBuilder {
         if request.preset.id == ExportPreset.Defaults.bestYouTubeAudio || request.preset.forceSingleItem == true {
             arguments.append("--no-playlist")
         }
+        if requiresHEVC(for: request) {
+            // Match the working YouTube audio path; the default visionOS client
+            // can expose only unavailable HLS formats on this installation.
+            arguments += ["--extractor-args", "youtube:player_client=web_embedded,android_vr"]
+        }
         arguments += javaScriptRuntimeArguments()
 
         let outputFolder = request.outputFolder.isEmpty ? AppSettings.defaultDownloadFolder : request.outputFolder
@@ -88,6 +97,9 @@ enum CommandBuilder {
         if isPlaylist && request.playlistOptions.reverseOrder {
             arguments.append("--playlist-reverse")
         }
+
+        // Track the final file, including existing downloads and playlist entries.
+        arguments += ["--print", "after_move:\(YTDLPService.outputPathPrefix)%(filepath)s", "--no-simulate", "--no-quiet", "--progress"]
 
         arguments += request.advancedArguments
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }

@@ -3,26 +3,6 @@
   Object.defineProperty(window, "__pullrPageCaptureInstalled", { value: true });
 
   let latestPosterURL = "";
-  const playingVideos = new Set();
-  let lastPlaybackState;
-
-  const reportPlayback = () => {
-    const playing = playingVideos.size > 0;
-    if (playing === lastPlaybackState) return;
-    lastPlaybackState = playing;
-    window.postMessage({ source: "pullr-playback", playing }, "*");
-  };
-
-  const handlePlaybackEvent = (event) => {
-    const video = event.target;
-    if (!(video instanceof HTMLVideoElement)) return;
-    if (event.type === "playing" || (event.type === "seeked" && !video.paused && !video.ended)) {
-      playingVideos.add(video);
-    } else {
-      playingVideos.delete(video);
-    }
-    reportPlayback();
-  };
 
   const normalizedWebURL = (value) => {
     try {
@@ -112,10 +92,6 @@
 
   const startDOMCapture = () => {
     reportMedia();
-    document.querySelectorAll?.("video").forEach((video) => {
-      if (!video.paused && !video.ended && !video.seeking && video.readyState >= 3) playingVideos.add(video);
-    });
-    reportPlayback();
     new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         if (mutation.type === "attributes") reportMedia(mutation.target);
@@ -127,9 +103,6 @@
   };
 
   if (typeof document !== "undefined") {
-    ["playing", "pause", "ended", "waiting", "seeking", "seeked", "emptied"].forEach((name) => {
-      document.addEventListener(name, handlePlaybackEvent, true);
-    });
     if (document.documentElement) startDOMCapture();
     else document.addEventListener("DOMContentLoaded", startDOMCapture, { once: true });
   }

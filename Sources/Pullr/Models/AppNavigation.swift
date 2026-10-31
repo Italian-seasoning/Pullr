@@ -83,10 +83,17 @@ struct BrowserPresetRequest: Equatable {
         let queryItems = URLComponents(url: deepLink, resolvingAgainstBaseURL: false)?.queryItems ?? []
         guard queryItems.first(where: { $0.name == "captureKind" }) == nil,
               let url = queryItems.first(where: { $0.name == "url" || $0.name == "text" })?.value,
-              URLExtractor.isSupportedURL(url),
-              let presetValue = queryItems.first(where: { $0.name == "presetID" })?.value,
-              let presetID = UUID(uuidString: presetValue)
+              URLExtractor.isSupportedURL(url)
         else { return nil }
+        let presetID: UUID
+        if let presetValue = queryItems.first(where: { $0.name == "presetID" })?.value {
+            guard let explicitID = UUID(uuidString: presetValue) else { return nil }
+            presetID = explicitID
+        } else {
+            // Older extension versions sent YouTube pages without a preset.
+            guard URLExtractor.isYouTubeURL(url) else { return nil }
+            presetID = ExportPreset.Defaults.bestMP4
+        }
         self.url = URLExtractor.singleYouTubeVideoURL(url)
         self.presetID = presetID
         self.startImmediately = ["1", "true"].contains(

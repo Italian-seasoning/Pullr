@@ -63,8 +63,19 @@ struct RootView: View {
             SeasonManagerView()
                 .environmentObject(store)
         }
-        .task {
-            await store.monitorClipboard()
+        .alert("Queue storage problem", isPresented: Binding(
+            get: { store.queueStorageError != nil },
+            set: { if !$0 { store.queueStorageError = nil } }
+        )) {
+            Button("OK", role: .cancel) { store.queueStorageError = nil }
+        } message: {
+            Text(store.queueStorageError ?? "")
+        }
+        .onAppear {
+            store.checkClipboardForSuggestion()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            store.checkClipboardForSuggestion()
         }
     }
 
