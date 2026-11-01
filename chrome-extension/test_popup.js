@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 require("./stream-capture.js");
 
-async function popup({ url, streams = [], nativeAvailable = true }) {
+async function popup({ url, streams = [], nativeAvailable = true, nativeResponse = () => ({ ok: true }) }) {
   const elements = new Map();
   const element = (selector) => {
     if (!elements.has(selector)) elements.set(selector, {
@@ -28,7 +28,7 @@ async function popup({ url, streams = [], nativeAvailable = true }) {
         sendNativeMessage: async (_host, message) => {
           nativeMessages.push(message);
           if (!nativeAvailable) throw new Error("Native helper unavailable");
-          return { ok: true };
+          return nativeResponse(message);
         }
       },
       storage: { onChanged: { addListener() {} }, local: { get: async () => ({}), set: async () => {} } }
@@ -64,5 +64,15 @@ async function popup({ url, streams = [], nativeAvailable = true }) {
   assert.equal(embedded.nativeMessages[0].captureKind, "hls");
   const empty = await popup({ url: "https://anime.example/watch/1" });
   assert.equal(empty.elements.get("#send-page").disabled, true);
+  const music = await popup({ url: "https://www.youtube.com/watch?v=abc", nativeResponse: (message) => message.action === "findAppleMusic"
+    ? { ok: false, error: "confirm_match", title: "Song", artist: "Artist", url: "https://music.apple.com/ca/album/1" }
+    : { ok: true } });
+  await music.elements.get("#apple-music").listeners.click();
+  assert.equal(music.elements.get("#confirm-apple-music").hidden, false);
+  assert.match(music.elements.get("#confirm-apple-music").textContent, /Song.*Artist/);
+  assert.equal(music.nativeMessages.length, 1, "An uncertain match must not open without confirmation");
+  await music.elements.get("#confirm-apple-music").listeners.click();
+  assert.equal(music.nativeMessages[1].action, "openAppleMusicMatch");
+  assert.equal(music.nativeMessages[1].url, "https://music.apple.com/ca/album/1");
   console.log("Popup YouTube, native fallback, and embedded stream checks passed.");
 })().catch((error) => { console.error(error); process.exitCode = 1; });

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${1:-1.1.3}"
+VERSION="${1:-1.1.4}"
 REPOSITORY="${GITHUB_REPOSITORY:-Italian-seasoning/Pullr}"
 TAG="v$VERSION"
 RELEASE_DIR="$ROOT/dist/github-release/$TAG"
@@ -79,7 +79,7 @@ APPCAST_STAGE="$RELEASE_DIR/appcast-source"
 mkdir -p "$APPCAST_STAGE"
 ditto "$RELEASE_DIR/$DMG_NAME" "$APPCAST_STAGE/$DMG_NAME"
 cat >"$APPCAST_STAGE/Pullr-$VERSION-macOS.md" <<NOTES
-Pullr $VERSION improves download reliability, queue recovery, and background efficiency. YouTube videos can be saved as H.265, and Apple Music matching better distinguishes similar titles.
+Pullr $VERSION improves Apple Music matching for artist names with punctuation and videos uploaded by other channels. When the artist is uncertain, Pullr asks you to confirm the suggested track.
 
 To update the browser extension and native helper, download the separate Browser Extension archive and follow its README. The app updater does not replace those components.
 

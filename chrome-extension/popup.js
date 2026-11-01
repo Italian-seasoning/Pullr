@@ -7,6 +7,7 @@ const streamList = document.querySelector("#stream-list");
 const music = document.querySelector("#music");
 const songTitle = document.querySelector("#song-title");
 const appleMusicButton = document.querySelector("#apple-music");
+const confirmAppleMusicButton = document.querySelector("#confirm-apple-music");
 const downloadAudioButton = document.querySelector("#download-audio");
 const sendYouTubeButton = document.querySelector("#send-youtube");
 const hoursToggle = document.querySelector("#hours-toggle");
@@ -16,6 +17,7 @@ const bestAudioPresetID = "3A4B5C6D-7E8F-4091-A120-AAAAAAAAAAAA";
 const bestVideoPresetID = "A1B2C3D4-E5F6-47A8-9B10-111111111111";
 let preferredStream = null;
 let currentMusic = null;
+let pendingMusicMatch = null;
 let currentSite = null;
 let allowedSites = [];
 
@@ -182,6 +184,9 @@ async function sendYouTubeVideo(tab) {
 
 async function openAppleMusic(tab) {
   const details = currentMusic || { title: tab.title || "", artist: "", url: tab.url };
+  pendingMusicMatch = null;
+  confirmAppleMusicButton.hidden = true;
+  confirmAppleMusicButton.disabled = false;
   setStatus("Matching this song…");
   try {
     const response = await chrome.runtime.sendNativeMessage("app.pullr.native", {
@@ -192,6 +197,13 @@ async function openAppleMusic(tab) {
     });
     if (response?.ok) {
       setStatus(`Opened ${response.title} by ${response.artist} in Music.`);
+      return;
+    }
+    if (response?.error === "confirm_match" && response.url && response.title && response.artist) {
+      pendingMusicMatch = response;
+      confirmAppleMusicButton.textContent = `Open ${response.title} — ${response.artist}`;
+      confirmAppleMusicButton.hidden = false;
+      setStatus("Possible match. Confirm the song and artist before opening.");
       return;
     }
   } catch {}
@@ -290,6 +302,23 @@ sendPageButton.addEventListener("click", async () => {
 appleMusicButton.addEventListener("click", async () => {
   const tab = await activeTab();
   if (tab?.url && isYouTubeURL(tab.url)) await openAppleMusic(tab);
+});
+
+confirmAppleMusicButton.addEventListener("click", async () => {
+  const match = pendingMusicMatch;
+  if (!match) return;
+  confirmAppleMusicButton.disabled = true;
+  try {
+    const response = await chrome.runtime.sendNativeMessage("app.pullr.native", { action: "openAppleMusicMatch", url: match.url });
+    if (response?.ok) {
+      setStatus(`Opened ${match.title} by ${match.artist} in Music.`);
+      pendingMusicMatch = null;
+      confirmAppleMusicButton.hidden = true;
+      return;
+    }
+  } catch {}
+  setStatus("Could not open this match in Music.");
+  confirmAppleMusicButton.disabled = false;
 });
 
 downloadAudioButton.addEventListener("click", async () => {
