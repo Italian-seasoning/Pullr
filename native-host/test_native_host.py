@@ -117,6 +117,11 @@ match = best_music_match("Artist - The Song (Official Video)", "", [
 ])
 assert match["trackViewUrl"] == "https://music.apple.com/right"
 
+for artist in ["Earth, Wind & Fire", "Simon & Garfunkel", "Hall & Oates"]:
+    assert best_music_match("September", artist, [
+        {"trackName": "September", "artistName": artist, "trackViewUrl": "https://music.apple.com/right"},
+    ])["trackViewUrl"].endswith("/right")
+
 punctuation_candidates = [
     {"trackName": "Song", "artistName": "Artist", "trackViewUrl": "https://music.apple.com/plain"},
     {"trackName": "Song!", "artistName": "Artist", "trackViewUrl": "https://music.apple.com/exclamation"},
@@ -141,6 +146,10 @@ assert best_music_match("Song", "Artist", [
     {"trackName": "Song", "artistName": "Artista", "trackViewUrl": "https://music.apple.com/one"},
     {"trackName": "Song", "artistName": "Artistb", "trackViewUrl": "https://music.apple.com/two"},
 ]) is None
+possible = best_music_match("Song", "The Beatles", [
+    {"trackName": "Song", "artistName": "The Beatle", "trackViewUrl": "https://music.apple.com/possible"},
+])
+assert possible and possible["requiresConfirmation"] is True
 assert best_music_match("Don’t Stop", "Artist", [
     {"trackName": "Don't Stop", "artistName": "Artist", "trackViewUrl": "https://music.apple.com/right"},
 ])["trackViewUrl"].endswith("/right")
@@ -163,5 +172,62 @@ def fake_music_search(endpoint):
 match = find_apple_music({"title": "AMORA", "artist": "QMIR"}, fetcher=fake_music_search)
 assert match["trackViewUrl"] == "https://music.apple.com/amora"
 assert search_terms == ["QMIR AMORA", "AMORA"]
+
+def vevo_search(endpoint):
+    term = parse_qs(urlparse(endpoint).query)["term"][0]
+    if term == "Rick Astley Never Gonna Give You Up":
+        return {"results": [{"trackName": "Never Gonna Give You Up", "artistName": "Rick Astley", "trackViewUrl": "https://music.apple.com/rick"}]}
+    return {"results": []}
+
+match = find_apple_music({"title": "Rick Astley - Never Gonna Give You Up", "artist": "RickAstleyVEVO"}, fetcher=vevo_search)
+assert match and match["trackViewUrl"].endswith("/rick")
+
+def exact_title_search(endpoint):
+    return {"results": [
+        {"trackName": "ASTRAL! - SUPER SLOWED", "artistName": "xxephyrr", "trackViewUrl": "https://music.apple.com/astral"},
+        {"trackName": "SUPER SLOWED", "artistName": "ASTRAL!", "trackViewUrl": "https://music.apple.com/wrong"},
+    ]}
+
+match = find_apple_music({"title": "ASTRAL! - SUPER SLOWED", "artist": "xxephyrr"}, fetcher=exact_title_search)
+assert match and match["trackViewUrl"].endswith("/astral")
+
+def misleading_title_search(endpoint):
+    return {"results": [{"trackName": "Extended", "artistName": "Name", "trackViewUrl": "https://music.apple.com/wrong"}]}
+
+for channel in ["UnrelatedUploader", "Name Music"]:
+    possible = find_apple_music({"title": "Name - Extended", "artist": channel}, fetcher=misleading_title_search)
+    assert possible and possible["requiresConfirmation"] is True
+possible = find_apple_music({"title": "Extended", "artist": ""}, fetcher=misleading_title_search)
+assert possible and possible["requiresConfirmation"] is True
+
+def run_music_action(message, match=None):
+    data = json.dumps(message).encode()
+    reply = io.BytesIO()
+    with tempfile.TemporaryDirectory() as directory, \
+         patch('sys.stdin', SimpleNamespace(buffer=io.BytesIO(struct.pack('<I', len(data)) + data))), \
+         patch('sys.stdout', SimpleNamespace(buffer=reply)), \
+         patch('pathlib.Path.home', return_value=Path(directory)), \
+         patch('pullr_native_host.find_apple_music', return_value=match), \
+         patch('subprocess.run', return_value=SimpleNamespace(returncode=0)) as opened:
+        main()
+    return json.loads(reply.getvalue()[4:]), opened
+
+suggestion = {"trackName": "Extended", "artistName": "Name", "trackViewUrl": "https://music.apple.com/ca/album/example/1", "requiresConfirmation": True}
+reply, opened = run_music_action({"action": "findAppleMusic", "title": "Song"}, {"trackName": "Song", "artistName": "Artist", "trackViewUrl": "https://music.apple.com.attacker.example/track"})
+assert reply["ok"] is False
+opened.assert_not_called()
+reply, opened = run_music_action({"action": "findAppleMusic", "title": "Name - Extended"}, suggestion)
+assert reply["error"] == "confirm_match" and reply["title"] == "Extended"
+opened.assert_not_called()
+reply, opened = run_music_action({"action": "openAppleMusicMatch", "url": suggestion["trackViewUrl"]})
+assert reply["ok"] is True
+opened.assert_called_once()
+reply, opened = run_music_action({"action": "openAppleMusicMatch", "url": "https://music.apple.com.attacker.example/track"})
+assert reply["ok"] is False
+opened.assert_not_called()
+for url in ["http://music.apple.com/track", "https://user@music.apple.com/track", "https://music.apple.com:444/track"]:
+    reply, opened = run_music_action({"action": "openAppleMusicMatch", "url": url})
+    assert reply["ok"] is False
+    opened.assert_not_called()
 
 print("Native host checks passed.")

@@ -265,6 +265,16 @@ def split_music_title(title, artist=""):
     return clean_title, clean_artist
 
 
+def valid_apple_music_url(url):
+    if not isinstance(url, str) or not url or len(url) > 2048 or any(ord(char) < 32 for char in url):
+        return False
+    try:
+        parsed = urlparse(url)
+        return parsed.scheme == "https" and parsed.hostname == "music.apple.com" and not parsed.username and not parsed.password and parsed.port in (None, 443)
+    except ValueError:
+        return False
+
+
 def best_music_match(title, artist, results):
     from difflib import SequenceMatcher
     import unicodedata
@@ -282,13 +292,16 @@ def best_music_match(title, artist, results):
     if not wanted_title:
         return None
 
+    def credits(candidate):
+        name = candidate.get("artistName", "")
+        return [name, *re.split(r"\s*(?:,|&|\bfeat\.?\b|\bft\.?\b)\s*", name, flags=re.I)]
+
     def score(candidate):
         if not wanted_artist:
             return 1.0
-        credits = re.split(r"\s*(?:,|&|\bfeat\.?\b|\bft\.?\b)\s*", candidate.get("artistName", ""), flags=re.I)
-        return max((SequenceMatcher(None, wanted_artist, _normalized_music_text(credit)).ratio() for credit in credits), default=0)
+        return max((SequenceMatcher(None, wanted_artist, _normalized_music_text(credit)).ratio() for credit in credits(candidate)), default=0)
 
-    candidates = [item for item in results if isinstance(item, dict) and item.get("trackViewUrl")
+    candidates = [item for item in results if isinstance(item, dict) and valid_apple_music_url(item.get("trackViewUrl"))
                   and comparable_title(item.get("trackName", "")) == wanted_title]
     match = max(candidates, key=score, default=None)
     if not match or score(match) < 0.8:
@@ -296,35 +309,54 @@ def best_music_match(title, artist, results):
     if any(_normalized_music_text(item.get("artistName", "")) != _normalized_music_text(match.get("artistName", ""))
            and score(item) >= score(match) - 0.05 for item in candidates):
         return None
+    if wanted_artist and wanted_artist not in {_normalized_music_text(credit) for credit in credits(match)}:
+        return {**match, "requiresConfirmation": True}
     return match
 
 
 def find_apple_music(message, fetcher=None):
+    supplied_artist = _safe_text(message.get("artist", ""), 160).removesuffix(" - Topic").strip()
     title, artist = split_music_title(message.get("title", ""), message.get("artist", ""))
     if not title:
         return None
-    terms = [" ".join(part for part in [artist, title] if part)]
-    if artist:
-        terms.append(title)
 
-    results = []
-    for term in terms:
-        endpoint = "https://itunes.apple.com/search?" + urlencode({
-            "term": term,
-            "country": "CA",
-            "media": "music",
-            "entity": "song",
-            "limit": 20,
-        })
-        if fetcher is None:
-            from urllib.request import urlopen
+    def search(song, performer):
+        terms = [" ".join(part for part in [performer, song] if part)]
+        if performer:
+            terms.append(song)
+        results = []
+        for term in terms:
+            endpoint = "https://itunes.apple.com/search?" + urlencode({
+                "term": term,
+                "country": "CA",
+                "media": "music",
+                "entity": "song",
+                "limit": 20,
+            })
+            if fetcher is None:
+                from urllib.request import urlopen
 
-            with urlopen(endpoint, timeout=8) as response:
-                payload = json.load(response)
-        else:
-            payload = fetcher(endpoint)
-        results.extend(payload.get("results", []))
-    return best_music_match(title, artist, results)
+                with urlopen(endpoint, timeout=8) as response:
+                    payload = json.load(response)
+            else:
+                payload = fetcher(endpoint)
+            results.extend(payload.get("results", []))
+        return best_music_match(song, performer, results)
+
+    match = search(title, artist)
+    if match:
+        if not supplied_artist:
+            return {**match, "requiresConfirmation": True}
+        return match
+    alternate_title, alternate_artist = split_music_title(title)
+    channel = re.sub(r"vevo$", "", _normalized_music_text(artist).replace(" ", ""))
+    if alternate_title != title and alternate_artist:
+        match = search(alternate_title, alternate_artist)
+        if match:
+            if not channel or channel != _normalized_music_text(alternate_artist).replace(" ", ""):
+                return {**match, "requiresConfirmation": True}
+            return match
+    return None
 
 
 def main():
@@ -349,16 +381,24 @@ def main():
 
     import subprocess
 
-    if action == "findAppleMusic":
-        try:
-            match = find_apple_music(message)
-        except Exception as error:
-            write_diagnostic("findAppleMusic", "lookup_failed", error)
-            write_message({"ok": False, "error": "lookup_failed"})
-            return
-        if not match:
+    if action in {"findAppleMusic", "openAppleMusicMatch"}:
+        if action == "findAppleMusic":
+            try:
+                match = find_apple_music(message)
+            except Exception as error:
+                write_diagnostic("findAppleMusic", "lookup_failed", error)
+                write_message({"ok": False, "error": "lookup_failed"})
+                return
+        else:
+            url = message.get("url", "")
+            match = {"trackViewUrl": url} if valid_apple_music_url(url) else None
+        if not match or not valid_apple_music_url(match.get("trackViewUrl")):
             write_diagnostic("findAppleMusic", "no_match")
             write_message({"ok": False, "error": "no_match"})
+            return
+        if match.get("requiresConfirmation"):
+            write_message({"ok": False, "error": "confirm_match", "title": match.get("trackName", ""),
+                           "artist": match.get("artistName", ""), "url": match["trackViewUrl"]})
             return
         try:
             opened = subprocess.run(

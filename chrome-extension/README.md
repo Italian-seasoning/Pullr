@@ -22,6 +22,8 @@ On a YouTube video, the main **Download YouTube video · H.265** button download
 
 On YouTube and YouTube Music, the popup has compact actions to find a confident Apple Music match, download and import the best audio, or add the current video to Pullr's normal download queue. Optional YouTube time tracking follows the website activity settings below.
 
+If the video does not clearly identify the artist, Pullr shows a possible match for you to confirm before opening it in Music.
+
 ## Website activity
 
 Hours tracking is off by default. Add each website in the extension popup, then enable **Track allowed websites**. Pullr counts time on the active Chrome tab while Chrome is focused and macOS is not idle, whether or not video is playing. An allowed domain includes its subdomains; all other sites are ignored. General sites are stored by domain; YouTube also keeps the current page title. The local log is `~/Library/Application Support/Pullr/website-activity.jsonl`, summarized in Pullr's Activity section. Removing a site stops new records but does not erase its existing history.
