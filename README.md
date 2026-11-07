@@ -21,7 +21,7 @@ brew install --cask italian-seasoning/tap/pullr
 
 Install the media tools with `brew install yt-dlp ffmpeg deno`.
 
-Current preview: **1.1.2**. [Download the DMG](https://github.com/Italian-seasoning/Pullr/releases/download/v1.1.2/Pullr-1.1.2-macOS.dmg).
+Current preview: **1.1.4**. [Download the DMG](https://github.com/Italian-seasoning/Pullr/releases/download/v1.1.4/Pullr-1.1.4-macOS.dmg).
 
 Requires macOS 14 or newer on Apple silicon or Intel.
 
@@ -58,6 +58,8 @@ brew install yt-dlp ffmpeg deno
 Download the latest DMG from [Releases](https://github.com/Italian-seasoning/Pullr/releases). It contains Pullr.app and an `Install Pullr.command` helper; double-click the helper for a one-step install. Current preview builds are Sparkle-signed but not Apple-notarized, so Control-click Pullr and choose **Open** the first time.
 
 ## Chrome extension
+
+To update the extension and native messaging helper, download the [Browser Extension archive](https://github.com/Italian-seasoning/Pullr/releases/download/v1.1.4/Pullr-1.1.4-Browser-Extension.zip) and follow its README. Pullr’s in-app updater only updates the macOS app.
 
 1. Open `chrome://extensions` and enable Developer mode.
 2. Choose **Load unpacked** and select `chrome-extension` from this repository.
